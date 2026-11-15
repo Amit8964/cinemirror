@@ -174,3 +174,171 @@ export const LANGUAGES: { code: string; label: string }[] = [
 export function tmdbToCard(m: TmdbMovie): TitleCardData {
   return { slug: String(m.id), title: m.title, year: m.year, posterUrl: m.posterUrl, genres: [], durationMin: null };
 }
+
+/* ───────────────────────────── TV / web series ───────────────────────────── */
+
+export interface TmdbShow {
+  id: number;
+  name: string;
+  overview: string;
+  year: number | null;
+  posterUrl: string;
+  backdropUrl: string;
+  rating: number;
+  language: string;
+}
+
+export interface TmdbSeasonSummary {
+  number: number;
+  name: string;
+  episodeCount: number;
+  year: number | null;
+  posterUrl: string;
+}
+
+export interface TmdbShowDetails extends TmdbShow {
+  tagline: string;
+  genres: { id: number; name: string }[];
+  status: string;
+  creators: string[];
+  networks: string[];
+  seasons: TmdbSeasonSummary[];
+  cast: { id: number; name: string; character: string; photoUrl: string }[];
+  trailerKey: string;
+  similar: TmdbShow[];
+  certification: string;
+}
+
+export interface TmdbEpisode {
+  number: number;
+  name: string;
+  overview: string;
+  airDate: string;
+  runtime: number | null;
+  stillUrl: string;
+  rating: number;
+}
+
+function yearOf(date: unknown): number | null {
+  const s = String(date ?? "");
+  return /^\d{4}/.test(s) ? Number(s.slice(0, 4)) : null;
+}
+
+function mapShow(r: Raw): TmdbShow {
+  return {
+    id: Number(r.id),
+    name: String(r.name ?? r.original_name ?? ""),
+    overview: String(r.overview ?? ""),
+    year: yearOf(r.first_air_date),
+    posterUrl: img("w342", r.poster_path),
+    backdropUrl: img("w1280", r.backdrop_path),
+    rating: Number(r.vote_average ?? 0),
+    language: String(r.original_language ?? ""),
+  };
+}
+
+function mapShows(data: Raw | null, limit = 20): TmdbShow[] {
+  const results = Array.isArray(data?.results) ? (data!.results as Raw[]) : [];
+  return results.filter((r) => r.poster_path).map(mapShow).filter((s) => s.id && s.name).slice(0, limit);
+}
+
+export type TvCategory = "trending" | "popular" | "top_rated" | "on_the_air" | "airing_today";
+
+export const TV_CATEGORIES: Record<TvCategory, string> = {
+  trending: "Trending series",
+  popular: "Popular series",
+  top_rated: "Top rated series",
+  on_the_air: "New episodes this week",
+  airing_today: "Airing today",
+};
+
+export async function listTv(cat: TvCategory, page = 1): Promise<TmdbShow[]> {
+  if (cat === "trending") return mapShows(await call("/trending/tv/week", { page }));
+  return mapShows(await call(`/tv/${cat}`, { page }));
+}
+
+export async function discoverTv(opts: { lang?: string; genre?: number; page?: number }): Promise<TmdbShow[]> {
+  const params: Record<string, string | number> = { sort_by: "popularity.desc", "vote_count.gte": 10, page: opts.page ?? 1 };
+  if (opts.lang) params.with_original_language = opts.lang;
+  if (opts.genre) params.with_genres = opts.genre;
+  return mapShows(await call("/discover/tv", params));
+}
+
+export async function searchTv(q: string, page = 1): Promise<TmdbShow[]> {
+  const query = q.trim().slice(0, 100);
+  if (!query) return [];
+  return mapShows(await call("/search/tv", { query, page, include_adult: "false" }, 600));
+}
+
+export async function tvGenreList(): Promise<{ id: number; name: string }[]> {
+  const data = await call("/genre/tv/list", {}, 86400);
+  return Array.isArray(data?.genres) ? (data!.genres as { id: number; name: string }[]) : [];
+}
+
+export async function getShow(id: number): Promise<TmdbShowDetails | null> {
+  if (!Number.isInteger(id) || id <= 0) return null;
+  const d = await call(`/tv/${id}`, { append_to_response: "aggregate_credits,videos,content_ratings,similar" }, 21600);
+  if (!d || !d.id) return null;
+
+  const credits = (d.aggregate_credits ?? {}) as Raw;
+  const cast = (Array.isArray(credits.cast) ? (credits.cast as Raw[]) : []).slice(0, 12).map((c) => {
+    const roles = Array.isArray(c.roles) ? (c.roles as Raw[]) : [];
+    return {
+      id: Number(c.id),
+      name: String(c.name ?? ""),
+      character: String(roles[0]?.character ?? ""),
+      photoUrl: img("w185", c.profile_path),
+    };
+  });
+
+  const vids = Array.isArray((d.videos as Raw | undefined)?.results) ? (((d.videos as Raw).results) as Raw[]) : [];
+  const trailer =
+    vids.find((v) => v.site === "YouTube" && v.type === "Trailer") ?? vids.find((v) => v.site === "YouTube");
+  const trailerKey = /^[\w-]{6,20}$/.test(String(trailer?.key ?? "")) ? String(trailer!.key) : "";
+
+  const ratings = Array.isArray((d.content_ratings as Raw | undefined)?.results) ? (((d.content_ratings as Raw).results) as Raw[]) : [];
+  const cert = ratings.find((r) => r.iso_3166_1 === "IN") ?? ratings.find((r) => r.iso_3166_1 === "US");
+
+  const seasons = (Array.isArray(d.seasons) ? (d.seasons as Raw[]) : [])
+    .map((s) => ({
+      number: Number(s.season_number),
+      name: String(s.name ?? `Season ${s.season_number}`),
+      episodeCount: Number(s.episode_count ?? 0),
+      year: yearOf(s.air_date),
+      posterUrl: img("w342", s.poster_path),
+    }))
+    .filter((s) => s.number > 0 && s.episodeCount > 0);
+
+  return {
+    ...mapShow(d),
+    tagline: String(d.tagline ?? ""),
+    genres: Array.isArray(d.genres) ? (d.genres as { id: number; name: string }[]) : [],
+    status: String(d.status ?? ""),
+    creators: (Array.isArray(d.created_by) ? (d.created_by as Raw[]) : []).map((c) => String(c.name ?? "")).filter(Boolean),
+    networks: (Array.isArray(d.networks) ? (d.networks as Raw[]) : []).map((n) => String(n.name ?? "")).filter(Boolean),
+    seasons,
+    cast,
+    trailerKey,
+    similar: mapShows((d.similar as Raw) ?? null, 12),
+    certification: String(cert?.rating ?? ""),
+  };
+}
+
+export async function getSeason(showId: number, season: number): Promise<TmdbEpisode[]> {
+  if (!Number.isInteger(showId) || showId <= 0 || !Number.isInteger(season) || season < 0) return [];
+  const d = await call(`/tv/${showId}/season/${season}`, {}, 21600);
+  const eps = Array.isArray(d?.episodes) ? (d!.episodes as Raw[]) : [];
+  return eps.map((e) => ({
+    number: Number(e.episode_number),
+    name: String(e.name ?? ""),
+    overview: String(e.overview ?? ""),
+    airDate: String(e.air_date ?? ""),
+    runtime: typeof e.runtime === "number" && e.runtime > 0 ? e.runtime : null,
+    stillUrl: img("w300", e.still_path),
+    rating: Number(e.vote_average ?? 0),
+  }));
+}
+
+export function showToCard(s: TmdbShow): TitleCardData {
+  return { slug: String(s.id), title: s.name, year: s.year, posterUrl: s.posterUrl, genres: [], durationMin: null };
+}

@@ -47,3 +47,10 @@ export const SearchIcon = (p: P) => <Stroke {...p}><circle cx="11" cy="11" r="7"
 export const InfoIcon = (p: P) => <Stroke {...p}><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 7.5v.5" /></Stroke>;
 export const CopyIcon = (p: P) => <Stroke {...p}><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 0 1 2-2h9" /></Stroke>;
 export const CloseIcon = (p: P) => <Stroke {...p}><path d="M6 6l12 12M18 6 6 18" /></Stroke>;
+
+export const HomeIcon = (p: P) => <Stroke {...p}><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V20a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V9.5" /></Stroke>;
+export const FilmIcon = (p: P) => <Stroke {...p}><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M7 3v18M17 3v18M3 8h4M3 16h4M17 8h4M17 16h4M3 12h18" /></Stroke>;
+export const TvIcon = (p: P) => <Stroke {...p}><rect x="2.5" y="6" width="19" height="13" rx="2" /><path d="m8 2.5 4 3.5 4-3.5" /></Stroke>;
+export const BookmarkIcon = (p: P) => <Stroke {...p}><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1Z" /></Stroke>;
+export const ChevronDownIcon = (p: P) => <Stroke {...p}><path d="m6 9 6 6 6-6" /></Stroke>;
+export const StarIcon = (p: P) => <Svg {...p}><path d="m12 2.8 2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8L12 2.8Z" /></Svg>;
