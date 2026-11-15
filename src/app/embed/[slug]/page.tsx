@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Player from "@/components/Player";
+import YouTubeFrame from "@/components/YouTubeFrame";
 import { getAdmin } from "@/lib/auth";
 import { getPartnerByKey } from "@/lib/partners";
 import { getTitleBySlug, toCard } from "@/lib/titles";
@@ -72,6 +73,9 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
 
   return (
     <main className="h-dvh w-full bg-black">
+      {title.sourceType === "youtube" ? (
+        <YouTubeFrame url={title.sourceUrl} title={title.title} autoPlay={one(sp.autoplay) === "1"} start={Number.isFinite(start) && start > 0 ? start : undefined} />
+      ) : (
       <Player
         src={title.sourceUrl}
         type={title.sourceType}
@@ -85,6 +89,7 @@ export default async function EmbedPage({ params, searchParams }: PageProps<"/em
         autoPlay={one(sp.autoplay) === "1"}
         startAt={Number.isFinite(start) && start > 0 ? start : undefined}
       />
+      )}
     </main>
   );
 }

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Player from "@/components/Player";
+import YouTubeFrame from "@/components/YouTubeFrame";
 import { getTitleBySlug, toCard } from "@/lib/titles";
 import { signPlayerGrant } from "@/lib/tokens";
 
@@ -21,6 +22,9 @@ export default async function WatchPage({ params }: PageProps<"/watch/[slug]">) 
 
   return (
     <main className="h-dvh w-full bg-black">
+      {title.sourceType === "youtube" ? (
+        <YouTubeFrame url={title.sourceUrl} title={title.title} backHref={`/title/${title.slug}`} autoPlay />
+      ) : (
       <Player
         src={title.sourceUrl}
         type={title.sourceType}
@@ -32,6 +36,7 @@ export default async function WatchPage({ params }: PageProps<"/watch/[slug]">) 
         backHref={`/title/${title.slug}`}
         autoPlay
       />
+      )}
     </main>
   );
 }

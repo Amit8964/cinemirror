@@ -23,8 +23,30 @@ export function safeUrl(input: string | null | undefined): string {
   }
 }
 
-export function detectSourceType(url: string): "hls" | "mp4" {
+export function detectSourceType(url: string): "hls" | "mp4" | "youtube" {
+  if (youtubeId(url)) return "youtube";
   return /\.m3u8(\?|#|$)/i.test(url) ? "hls" : "mp4";
+}
+
+/** The video id of a youtube.com / youtu.be link, or "" if it is not one. */
+export function youtubeId(url: string): string {
+  let u: URL;
+  try {
+    u = new URL(url);
+  } catch {
+    return "";
+  }
+  const host = u.hostname.replace(/^(www\.|m\.|music\.)/, "");
+  let id = "";
+  if (host === "youtu.be") id = u.pathname.slice(1).split("/")[0];
+  else if (host === "youtube.com" || host === "youtube-nocookie.com") {
+    if (u.pathname === "/watch") id = u.searchParams.get("v") ?? "";
+    else {
+      const m = u.pathname.match(/^\/(?:embed|shorts|live|v)\/([^/?#]+)/);
+      id = m?.[1] ?? "";
+    }
+  }
+  return /^[\w-]{6,20}$/.test(id) ? id : "";
 }
 
 /** "https://Sub.Example.com:8080/path" -> "sub.example.com:8080" */

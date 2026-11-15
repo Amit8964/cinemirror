@@ -24,7 +24,7 @@ function toTitle(r: Row): Title {
     posterUrl: String(r.poster_url ?? ""),
     backdropUrl: String(r.backdrop_url ?? ""),
     sourceUrl: String(r.source_url ?? ""),
-    sourceType: r.source_type === "hls" ? "hls" : "mp4",
+    sourceType: r.source_type === "hls" || r.source_type === "youtube" ? r.source_type : "mp4",
     subtitles: parseJson<Subtitle[]>(r.subtitles, []),
     credit: String(r.credit ?? ""),
     featured: Number(r.featured) === 1,

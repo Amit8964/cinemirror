@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import ImportPanel from "@/components/admin/ImportPanel";
 import TitleForm from "@/components/admin/TitleForm";
-import { getMovie, searchMovies, tmdbEnabled, LANGUAGES } from "@/lib/tmdb";
+import { importFromLink, prefillFromTmdb, type ImportResult } from "@/lib/importer";
+import { getMovie, searchMovies, tmdbEnabled } from "@/lib/tmdb";
 import type { Title } from "@/lib/types";
-import { slugify } from "@/lib/util";
 
 export const metadata: Metadata = { title: "Add title" };
 
@@ -11,38 +12,41 @@ export default async function NewTitlePage({ searchParams }: PageProps<"/admin/t
   const sp = await searchParams;
   const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
   const q = one(sp.q).trim();
-  const tmdbId = Number(one(sp.tmdb)) || 0;
+  const link = one(sp.link).trim();
+  const stream = one(sp.stream);
+  const tmdb = one(sp.tmdb);
+  const tmdbId = Number(tmdb) || 0;
   const enabled = tmdbEnabled();
 
+  let imported: ImportResult | null = null;
   let prefill: Partial<Title> | undefined;
-  if (enabled && tmdbId) {
+  if (link) {
+    imported = await importFromLink(link, { stream, tmdb });
+    prefill = imported.prefill;
+  } else if (enabled && tmdbId) {
     const m = await getMovie(tmdbId);
-    if (m) {
-      prefill = {
-        title: m.title,
-        slug: slugify(m.title),
-        description: m.overview,
-        year: m.year,
-        durationMin: m.runtime,
-        genres: m.genres.map((g) => g.name),
-        rating: m.certification,
-        language: LANGUAGES.find((l) => l.code === m.language)?.label.replace(/ \(.*\)/, "") ?? m.language,
-        posterUrl: m.posterUrl.replace("/w342/", "/w500/"),
-        backdropUrl: m.backdropUrl,
-        credit: "Film information and images: TMDB",
-      };
-    }
+    if (m) prefill = prefillFromTmdb(m);
   }
   const results = enabled && q ? await searchMovies(q) : [];
+
+  // Picking a film from the manual search keeps the imported link and stream.
+  const pickHref = (id: number) => {
+    const p = new URLSearchParams({ tmdb: String(id) });
+    if (link) p.set("link", link);
+    return `/admin/titles/new?${p}`;
+  };
 
   return (
     <>
       <h1 className="mb-5 text-2xl font-extrabold tracking-tight">Add title</h1>
 
+      <ImportPanel link={link} result={imported} stream={stream} tmdb={tmdb} tmdbEnabled={enabled} />
+
       {enabled && (
         <section className="mb-6 rounded-xl border border-line bg-surface p-5">
           <h2 className="text-xs font-bold tracking-wider text-muted uppercase">Fill details from TMDB</h2>
           <form className="mt-3 flex max-w-lg gap-2">
+            {link && <input type="hidden" name="link" value={link} />}
             <input name="q" defaultValue={q} placeholder="Search a movie…" className="field" aria-label="Search TMDB" />
             <button className="btn btn-ghost">Search</button>
           </form>
@@ -53,16 +57,16 @@ export default async function NewTitlePage({ searchParams }: PageProps<"/admin/t
                   <span className="min-w-0 truncate font-semibold">
                     {r.title} <span className="font-normal text-muted">{r.year ?? ""}</span>
                   </span>
-                  <Link href={`/admin/titles/new?tmdb=${r.id}`} className="shrink-0 font-semibold text-accent hover:underline">Use</Link>
+                  <Link href={pickHref(r.id)} className="shrink-0 font-semibold text-accent hover:underline">Use</Link>
                 </li>
               ))}
             </ul>
           )}
-          {prefill && <p className="mt-3 text-sm text-muted">Filled from TMDB: <b className="text-text">{prefill.title}</b>. Add your video source below.</p>}
+          {!link && prefill && <p className="mt-3 text-sm text-muted">Filled from TMDB: <b className="text-text">{prefill.title}</b>. Add your video source below.</p>}
         </section>
       )}
 
-      <TitleForm key={tmdbId} prefill={prefill} />
+      <TitleForm key={`${link}|${stream}|${tmdb}`} prefill={prefill} />
     </>
   );
 }

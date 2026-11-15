@@ -1,4 +1,5 @@
-export type SourceType = "hls" | "mp4";
+/** "youtube" = an embedded YouTube video (used for trailer-only titles). */
+export type SourceType = "hls" | "mp4" | "youtube";
 
 export interface Subtitle {
   label: string;

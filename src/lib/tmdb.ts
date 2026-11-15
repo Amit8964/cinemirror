@@ -342,3 +342,30 @@ export async function getSeason(showId: number, season: number): Promise<TmdbEpi
 export function showToCard(s: TmdbShow): TitleCardData {
   return { slug: String(s.id), title: s.name, year: s.year, posterUrl: s.posterUrl, genres: [], durationMin: null };
 }
+
+/* ───────────────────────────── link import matching ───────────────────────────── */
+
+const normTitle = (s: string) =>
+  s.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/^(the|a|an)\s+/, "").replace(/[^a-z0-9]+/g, "");
+
+/** TMDB movies that best match a title guessed from a link, best first. */
+export async function matchMovie(title: string, year: number | null): Promise<TmdbMovie[]> {
+  const query = title.trim().slice(0, 100);
+  if (!query) return [];
+  const [withYear, any] = await Promise.all([
+    year ? call("/search/movie", { query, year, include_adult: "false" }, 600) : Promise.resolve(null),
+    call("/search/movie", { query, include_adult: "false" }, 600),
+  ]);
+  const seen = new Set<number>();
+  const list = [...mapList(withYear, 8), ...mapList(any, 10)].filter((m) => !seen.has(m.id) && seen.add(m.id));
+  const q = normTitle(query);
+  const score = (m: TmdbMovie, i: number) => {
+    let s = -i * 0.05; // keep TMDB's relevance order as the tie-breaker
+    const t = normTitle(m.title);
+    if (t === q) s += 3;
+    else if (t.startsWith(q) || q.startsWith(t)) s += 1;
+    if (year && m.year) s += m.year === year ? 2 : Math.abs(m.year - year) <= 1 ? 1 : 0;
+    return s;
+  };
+  return list.map((m, i) => ({ m, s: score(m, i) })).sort((a, b) => b.s - a.s).map((x) => x.m).slice(0, 8);
+}
