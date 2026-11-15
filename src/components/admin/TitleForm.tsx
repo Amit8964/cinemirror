@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { saveTitleAction, type FormState } from "@/app/admin/actions";
 import type { Title } from "@/lib/types";
+import SourcePreview from "./SourcePreview";
 
 const label = "block text-sm font-semibold";
 const hint = "mt-1 text-xs font-normal text-muted";
@@ -23,22 +24,13 @@ export default function TitleForm({ title, prefill }: { title?: Title; prefill?:
 
       <fieldset className="grid gap-4 rounded-xl border border-line bg-surface p-5 sm:grid-cols-2">
         <legend className="px-1 text-xs font-bold tracking-wider text-muted uppercase">Video</legend>
-        <label className={`${label} sm:col-span-2`}>
-          Video source URL *
-          <input name="sourceUrl" required defaultValue={val("sourceUrl", title?.sourceUrl)} placeholder="https://cdn.example.com/film/master.m3u8" className="field mt-1" />
-          <p className={hint}>
-            An HLS playlist (.m3u8) or an MP4 file you own or are licensed to stream. Files placed in{" "}
-            <code>public/media</code> can be used as <code>/media/film.mp4</code>.
-          </p>
-        </label>
-        <label className={label}>
-          Format
-          <select name="sourceType" defaultValue={v?.sourceType ?? (title ? title.sourceType : "auto")} className="field mt-1">
-            <option value="auto">Detect from URL</option>
-            <option value="hls">HLS (.m3u8)</option>
-            <option value="mp4">MP4 / WebM file</option>
-          </select>
-        </label>
+        <SourcePreview
+          defaultUrl={val("sourceUrl", title?.sourceUrl)}
+          defaultType={v?.sourceType ?? (title ? title.sourceType : "auto")}
+          title={src?.title ?? ""}
+          poster={src?.backdropUrl || src?.posterUrl || undefined}
+          subtitles={title?.subtitles}
+        />
         <label className={`${label} sm:col-span-2`}>
           Subtitles
           <textarea name="subtitles" rows={2} defaultValue={val("subtitles", subs)} placeholder="English | en | https://cdn.example.com/film/en.vtt" className="field mt-1 font-mono !text-xs" />

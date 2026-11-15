@@ -28,6 +28,8 @@ export interface PlayerProps {
   brandHref?: string;
   autoPlay?: boolean;
   startAt?: number;
+  /** Don't read or write "continue watching" progress (admin preview). */
+  noProgress?: boolean;
 }
 
 interface Level {
@@ -45,7 +47,7 @@ type Menu = null | "main" | "quality" | "speed" | "subs";
 const noopSubscribe = () => () => {};
 
 export default function Player({
-  src, type, title, card, poster, subtitles = [], grant, embed, backHref, brandHref, autoPlay, startAt,
+  src, type, title, card, poster, subtitles = [], grant, embed, backHref, brandHref, autoPlay, startAt, noProgress,
 }: PlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -153,7 +155,7 @@ export default function Player({
       if (++t.sinceSave >= 5) {
         t.sinceSave = 0;
         const d = video.duration;
-        if (Number.isFinite(d) && d > 60) saveProgress(card, video.currentTime, d);
+        if (!noProgress && Number.isFinite(d) && d > 60) saveProgress(card, video.currentTime, d);
       }
     }, 1000);
     const onHide = () => {
@@ -168,7 +170,7 @@ export default function Player({
       window.removeEventListener("pagehide", onLeave);
       flushBeat({ beacon: true });
     };
-  }, [card, flushBeat]);
+  }, [card, flushBeat, noProgress]);
 
   // ---- source loading -----------------------------------------------------------
   useEffect(() => {
@@ -431,7 +433,7 @@ export default function Player({
     const video = videoRef.current;
     if (!video) return;
     setDuration(Number.isFinite(video.duration) ? video.duration : 0);
-    const saved = getProgress(card.slug);
+    const saved = noProgress ? null : getProgress(card.slug);
     const resume = startAt && startAt > 0 ? startAt : saved?.time;
     if (resume && Number.isFinite(video.duration) && resume > 5 && resume < video.duration - 20) {
       video.currentTime = resume;
@@ -515,7 +517,7 @@ export default function Player({
         onProgress={onProgress}
         onVolumeChange={(e) => { setVolume(e.currentTarget.volume); setMuted(e.currentTarget.muted); }}
         onRateChange={(e) => setRate(e.currentTarget.playbackRate)}
-        onEnded={() => { setPlaying(false); flushBeat({ ended: true }); clearProgress(card.slug); }}
+        onEnded={() => { setPlaying(false); flushBeat({ ended: true }); if (!noProgress) clearProgress(card.slug); }}
         onError={onVideoError}
       >
         {tracks.map((t) => (
