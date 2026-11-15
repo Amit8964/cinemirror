@@ -576,7 +576,7 @@ export default function Player({
             rel="noopener"
             className="shrink-0 rounded-md bg-black/40 px-2.5 py-1 font-display text-lg leading-none tracking-wide text-white/90 hover:text-white"
           >
-            MOVIE<span className="text-accent">HUB</span>
+            CINE<span className="text-accent">MIRROR</span>
           </a>
         )}
       </div>

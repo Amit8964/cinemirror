@@ -6,7 +6,7 @@ function secret(): Uint8Array {
   if (process.env.NODE_ENV === "production") {
     throw new Error("AUTH_SECRET must be set (16+ characters) in production.");
   }
-  return new TextEncoder().encode("moviehub-dev-only-insecure-secret");
+  return new TextEncoder().encode("cinemirror-dev-only-insecure-secret");
 }
 
 export async function sign(payload: JWTPayload, audience: string, ttl: string): Promise<string> {

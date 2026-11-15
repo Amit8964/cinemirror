@@ -4,7 +4,7 @@ import { SearchIcon } from "./icons";
 export function Logo({ className = "" }: { className?: string }) {
   return (
     <span className={`font-display text-3xl leading-none tracking-wide ${className}`}>
-      MOVIE<span className="text-accent">HUB</span>
+      CINE<span className="text-accent">MIRROR</span>
     </span>
   );
 }
@@ -13,7 +13,7 @@ export function SiteHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-white/5 bg-ink/85 backdrop-blur-md">
       <div className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4 sm:gap-8 sm:px-6">
-        <Link href="/" aria-label="MovieHub home"><Logo /></Link>
+        <Link href="/" aria-label="CineMirror home"><Logo /></Link>
         <nav className="flex items-center gap-4 text-sm font-semibold whitespace-nowrap text-muted sm:gap-6">
           <Link href="/" className="hidden hover:text-text sm:block">Home</Link>
           <Link href="/browse" className="hover:text-text">Browse</Link>

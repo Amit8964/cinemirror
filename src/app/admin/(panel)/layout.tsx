@@ -6,7 +6,7 @@ import { Logo } from "@/components/SiteChrome";
 import { requireAdmin } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: { default: "Admin", template: "%s · MovieHub admin" }, robots: { index: false } };
+export const metadata: Metadata = { title: { default: "Admin", template: "%s · CineMirror admin" }, robots: { index: false } };
 
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   const admin = await requireAdmin();

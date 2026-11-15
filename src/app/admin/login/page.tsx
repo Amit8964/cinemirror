@@ -20,7 +20,7 @@ export default async function LoginPage() {
               <LoginForm />
               {usingDevCredentials() && (
                 <p className="mt-4 rounded-lg border border-accent/30 bg-accent/10 p-3 text-xs text-text/80">
-                  Development mode: sign in with <b>admin@moviehub.local</b> / <b>admin123</b>. Set
+                  Development mode: sign in with <b>admin@cinemirror.local</b> / <b>admin123</b>. Set
                   ADMIN_EMAIL and ADMIN_PASSWORD before deploying.
                 </p>
               )}

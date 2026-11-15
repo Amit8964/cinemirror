@@ -10,7 +10,7 @@ import { domainAllowed, hostFromUrl } from "@/lib/util";
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "MovieHub player",
+  title: "CineMirror player",
   robots: { index: false, follow: false },
 };
 
@@ -19,7 +19,7 @@ function Blocked({ heading, detail }: { heading: string; detail: string }) {
     <main className="grid h-dvh w-full place-items-center bg-black px-6 text-center text-white">
       <div className="max-w-sm">
         <p className="font-display text-3xl tracking-wide">
-          MOVIE<span className="text-accent">HUB</span>
+          CINE<span className="text-accent">MIRROR</span>
         </p>
         <p className="mt-4 text-lg font-semibold">{heading}</p>
         <p className="mt-1 text-sm text-white/60">{detail}</p>

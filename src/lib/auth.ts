@@ -11,7 +11,7 @@ function credentials(): { email: string; password: string } | null {
   if (email && password) return { email, password };
   if (process.env.NODE_ENV === "production") return null;
   // Development convenience only — never active in production builds.
-  return { email: "admin@moviehub.local", password: "admin123" };
+  return { email: "admin@cinemirror.local", password: "admin123" };
 }
 
 export function adminConfigured(): boolean {

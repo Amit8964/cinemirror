@@ -1,4 +1,4 @@
-# MovieHub
+# CineMirror
 
 A self-hosted movie streaming site built with Next.js:
 
@@ -22,7 +22,7 @@ npm run dev                    # http://localhost:3000
 
 Admin panel: `http://localhost:3000/admin`.
 In development, if `ADMIN_EMAIL` / `ADMIN_PASSWORD` are not set, you can sign in with
-`admin@moviehub.local` / `admin123`. That fallback is disabled in production.
+`admin@cinemirror.local` / `admin123`. That fallback is disabled in production.
 
 ## Configuration
 
@@ -30,7 +30,7 @@ In development, if `ADMIN_EMAIL` / `ADMIN_PASSWORD` are not set, you can sign in
 | --- | --- | --- |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | in production | Admin sign-in |
 | `AUTH_SECRET` | in production | Signs admin sessions and player tracking tokens (`openssl rand -base64 48`) |
-| `DATABASE_URL` | no | `file:./data/moviehub.db` (default) or a `libsql://…` URL |
+| `DATABASE_URL` | no | `file:./data/cinemirror.db` (default) or a `libsql://…` URL |
 | `DATABASE_AUTH_TOKEN` | for hosted libSQL | Token for the hosted database |
 | `SEED_DEMO` | no | `false` to skip the demo catalogue on first start |
 

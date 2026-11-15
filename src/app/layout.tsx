@@ -4,7 +4,7 @@ import "@fontsource/bebas-neue";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "MovieHub — Watch free, legal movies", template: "%s · MovieHub" },
+  title: { default: "CineMirror — Watch free, legal movies", template: "%s · CineMirror" },
   description:
     "Stream openly licensed and public-domain films in a fast, modern player. Embed the player on your own site.",
 };

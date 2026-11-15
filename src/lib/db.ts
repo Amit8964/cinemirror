@@ -67,7 +67,7 @@ const g = globalThis as unknown as { __mhClient?: Client; __mhReady?: Promise<vo
 
 function getClient(): Client {
   if (!g.__mhClient) {
-    const url = process.env.DATABASE_URL || "file:./data/moviehub.db";
+    const url = process.env.DATABASE_URL || "file:./data/cinemirror.db";
     if (url.startsWith("file:")) {
       const file = url.slice("file:".length);
       fs.mkdirSync(path.dirname(path.resolve(file)), { recursive: true });
