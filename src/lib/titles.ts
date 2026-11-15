@@ -122,3 +122,13 @@ export async function updateTitle(id: string, input: TitleInput): Promise<void> 
 export async function deleteTitle(id: string): Promise<void> {
   await run("DELETE FROM titles WHERE id = ?", [id]);
 }
+
+const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+/** A published title in our own library that is the same film as a TMDB entry (title + year match). */
+export async function findLibraryMatch(title: string, year: number | null): Promise<Title | null> {
+  const n = norm(title);
+  if (!n) return null;
+  const all = await listTitles();
+  return all.find((t) => norm(t.title) === n && (year == null || t.year == null || t.year === year)) ?? null;
+}

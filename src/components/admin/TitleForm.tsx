@@ -8,12 +8,13 @@ import type { Title } from "@/lib/types";
 const label = "block text-sm font-semibold";
 const hint = "mt-1 text-xs font-normal text-muted";
 
-export default function TitleForm({ title }: { title?: Title }) {
+export default function TitleForm({ title, prefill }: { title?: Title; prefill?: Partial<Title> }) {
   const [state, action, pending] = useActionState<FormState, FormData>(saveTitleAction, {});
   const v = state.values;
   const val = (key: string, initial: string | number | null | undefined) => v?.[key] ?? String(initial ?? "");
   // After a failed submit, checkboxes come back from the submitted values.
   const checked = (key: string, initial: boolean) => (v ? v[key] === "on" : initial);
+  const src: Partial<Title> | undefined = title ?? prefill;
   const subs = title?.subtitles.map((s) => `${s.label} | ${s.lang} | ${s.url}`).join("\n") ?? "";
 
   return (
@@ -49,51 +50,51 @@ export default function TitleForm({ title }: { title?: Title }) {
         <legend className="px-1 text-xs font-bold tracking-wider text-muted uppercase">Details</legend>
         <label className={label}>
           Title *
-          <input name="title" required defaultValue={val("title", title?.title)} className="field mt-1" />
+          <input name="title" required defaultValue={val("title", src?.title)} className="field mt-1" />
         </label>
         <label className={label}>
           URL slug
-          <input name="slug" defaultValue={val("slug", title?.slug)} placeholder="made from the title if empty" className="field mt-1" />
+          <input name="slug" defaultValue={val("slug", src?.slug)} placeholder="made from the title if empty" className="field mt-1" />
         </label>
         <label className={`${label} sm:col-span-2`}>
           Description
-          <textarea name="description" rows={4} defaultValue={val("description", title?.description)} className="field mt-1" />
+          <textarea name="description" rows={4} defaultValue={val("description", src?.description)} className="field mt-1" />
         </label>
         <label className={label}>
           Genres
-          <input name="genres" defaultValue={val("genres", title?.genres.join(", "))} placeholder="Drama, Thriller" className="field mt-1" />
+          <input name="genres" defaultValue={val("genres", src?.genres?.join(", "))} placeholder="Drama, Thriller" className="field mt-1" />
           <p className={hint}>Comma separated.</p>
         </label>
         <div className="grid grid-cols-2 gap-4">
           <label className={label}>
             Year
-            <input name="year" type="number" min={1880} max={2100} defaultValue={val("year", title?.year)} className="field mt-1" />
+            <input name="year" type="number" min={1880} max={2100} defaultValue={val("year", src?.year)} className="field mt-1" />
           </label>
           <label className={label}>
             Runtime (min)
-            <input name="durationMin" type="number" min={1} max={1999} defaultValue={val("durationMin", title?.durationMin)} className="field mt-1" />
+            <input name="durationMin" type="number" min={1} max={1999} defaultValue={val("durationMin", src?.durationMin)} className="field mt-1" />
           </label>
         </div>
         <label className={label}>
           Age rating
-          <input name="rating" defaultValue={val("rating", title?.rating)} placeholder="PG-13, U/A…" className="field mt-1" />
+          <input name="rating" defaultValue={val("rating", src?.rating)} placeholder="PG-13, U/A…" className="field mt-1" />
         </label>
         <label className={label}>
           Language
-          <input name="language" defaultValue={val("language", title?.language)} className="field mt-1" />
+          <input name="language" defaultValue={val("language", src?.language)} className="field mt-1" />
         </label>
         <label className={label}>
           Poster image URL
-          <input name="posterUrl" defaultValue={val("posterUrl", title?.posterUrl)} placeholder="Portrait, 2:3" className="field mt-1" />
+          <input name="posterUrl" defaultValue={val("posterUrl", src?.posterUrl)} placeholder="Portrait, 2:3" className="field mt-1" />
           <p className={hint}>Leave empty to use generated poster art.</p>
         </label>
         <label className={label}>
           Backdrop image URL
-          <input name="backdropUrl" defaultValue={val("backdropUrl", title?.backdropUrl)} placeholder="Landscape, 16:9" className="field mt-1" />
+          <input name="backdropUrl" defaultValue={val("backdropUrl", src?.backdropUrl)} placeholder="Landscape, 16:9" className="field mt-1" />
         </label>
         <label className={`${label} sm:col-span-2`}>
           Credit / licence
-          <input name="credit" defaultValue={val("credit", title?.credit)} placeholder="© Studio — licensed for streaming / CC BY 4.0 / Public domain" className="field mt-1" />
+          <input name="credit" defaultValue={val("credit", src?.credit)} placeholder="© Studio — licensed for streaming / CC BY 4.0 / Public domain" className="field mt-1" />
         </label>
       </fieldset>
 

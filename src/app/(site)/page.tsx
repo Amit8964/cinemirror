@@ -5,6 +5,7 @@ import Poster from "@/components/Poster";
 import Shelf, { ShelfItem } from "@/components/Shelf";
 import TitleCard from "@/components/TitleCard";
 import { listTitles, toCard, trendingSlugs } from "@/lib/titles";
+import { discoverByLanguage, listCategory, tmdbEnabled, tmdbToCard, type TmdbMovie } from "@/lib/tmdb";
 import type { Title } from "@/lib/types";
 import { formatDuration, hueFor } from "@/lib/util";
 
@@ -29,6 +30,8 @@ export default async function HomePage() {
   titles.forEach((t) => t.genres.forEach((g) => genreCount.set(g, (genreCount.get(g) ?? 0) + 1)));
   const genres = [...genreCount.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
+  const tmdbShelves = await loadTmdbShelves();
+
   return (
     <>
       <Hero title={hero} />
@@ -52,8 +55,33 @@ export default async function HomePage() {
           ))}
         </Shelf>
       ))}
+      {tmdbShelves.map((sh) => (
+        <Shelf
+          key={sh.title}
+          title={sh.title}
+          action={<Link href={sh.href} className="text-sm font-semibold text-muted hover:text-accent">See all</Link>}
+        >
+          {sh.movies.map((m) => (
+            <ShelfItem key={m.id}><TitleCard card={tmdbToCard(m)} href={`/movie/${m.id}`} /></ShelfItem>
+          ))}
+        </Shelf>
+      ))}
     </>
   );
+}
+
+async function loadTmdbShelves(): Promise<{ title: string; href: string; movies: TmdbMovie[] }[]> {
+  if (!tmdbEnabled()) return [];
+  const defs = [
+    { title: "Trending worldwide", href: "/discover?cat=trending", load: () => listCategory("trending") },
+    { title: "Now playing", href: "/discover?cat=now_playing", load: () => listCategory("now_playing") },
+    { title: "Bollywood", href: "/discover?lang=hi", load: () => discoverByLanguage("hi") },
+    { title: "South Indian cinema", href: "/discover?lang=ta", load: () => discoverByLanguage("ta") },
+    { title: "Korean cinema", href: "/discover?lang=ko", load: () => discoverByLanguage("ko") },
+    { title: "Top rated", href: "/discover?cat=top_rated", load: () => listCategory("top_rated") },
+  ];
+  const loaded = await Promise.all(defs.map((d) => d.load()));
+  return defs.map((d, i) => ({ title: d.title, href: d.href, movies: loaded[i] })).filter((s) => s.movies.length >= 3);
 }
 
 function Hero({ title }: { title: Title }) {

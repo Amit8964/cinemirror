@@ -17,6 +17,7 @@ export function SiteHeader() {
         <nav className="flex items-center gap-4 text-sm font-semibold whitespace-nowrap text-muted sm:gap-6">
           <Link href="/" className="hidden hover:text-text sm:block">Home</Link>
           <Link href="/browse" className="hover:text-text">Browse</Link>
+          <Link href="/discover" className="hover:text-text">Discover</Link>
           <Link href="/my-list" className="hover:text-text">My List</Link>
         </nav>
         <form action="/browse" className="relative ml-auto hidden w-full max-w-xs sm:block">
@@ -53,6 +54,7 @@ export function SiteFooter() {
         </div>
         <nav className="flex gap-5 font-semibold">
           <Link href="/browse" className="hover:text-text">Browse</Link>
+          <Link href="/discover" className="hover:text-text">Discover</Link>
           <Link href="/my-list" className="hover:text-text">My List</Link>
           <Link href="/admin" className="hover:text-text">Admin</Link>
         </nav>
