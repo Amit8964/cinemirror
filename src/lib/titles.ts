@@ -123,6 +123,11 @@ export async function deleteTitle(id: string): Promise<void> {
   await run("DELETE FROM titles WHERE id = ?", [id]);
 }
 
+/** Hide (or show again) a title everywhere: site, watch page and partner embeds. */
+export async function setTitlePublished(id: string, published: boolean): Promise<void> {
+  await run("UPDATE titles SET published = ? WHERE id = ?", [published ? 1 : 0, id]);
+}
+
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
 
 /** A published title in our own library that is the same film as a TMDB entry (title + year match). */

@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import TitleCard from "@/components/TitleCard";
+import MovieGrid from "@/components/MovieGrid";
 import { SearchIcon } from "@/components/icons";
 import {
   CATEGORIES, LANGUAGES, discoverByGenre, discoverByLanguage, genreList, listCategory, searchMovies,
-  tmdbEnabled, tmdbToCard, type Category, type TmdbMovie,
+  tmdbEnabled, type Category, type TmdbMovie,
 } from "@/lib/tmdb";
 
 export const metadata: Metadata = { title: "Discover" };
@@ -30,22 +30,25 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
   const cat = (one(sp.cat) in CATEGORIES ? one(sp.cat) : "trending") as Category;
   const page = Math.min(Math.max(Number(one(sp.page)) || 1, 1), 20);
 
-  const genres = await genreList();
-  let movies: TmdbMovie[];
+  // Genres and movies load in parallel.
+  const genresP = genreList();
+  let moviesP: Promise<TmdbMovie[]>;
   let heading: string;
   if (q) {
-    movies = await searchMovies(q, page);
+    moviesP = searchMovies(q, page);
     heading = `Results for “${q}”`;
   } else if (lang) {
-    movies = await discoverByLanguage(lang, page);
+    moviesP = discoverByLanguage(lang, page);
     heading = LANGUAGES.find((l) => l.code === lang)!.label;
   } else if (genre) {
-    movies = await discoverByGenre(genre, page);
-    heading = genres.find((g) => g.id === genre)?.name ?? "Genre";
+    moviesP = discoverByGenre(genre, page);
+    heading = "Genre";
   } else {
-    movies = await listCategory(cat, page);
+    moviesP = listCategory(cat, page);
     heading = CATEGORIES[cat];
   }
+  const [genres, movies] = await Promise.all([genresP, moviesP]);
+  if (genre && !q && !lang) heading = genres.find((g) => g.id === genre)?.name ?? heading;
 
   const href = (next: Record<string, string | number>) => {
     const p = new URLSearchParams();
@@ -86,9 +89,12 @@ export default async function DiscoverPage({ searchParams }: PageProps<"/discove
       </div>
 
       {movies.length ? (
-        <div className="mt-7 grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-          {movies.map((m) => <TitleCard key={m.id} card={tmdbToCard(m)} href={`/movie/${m.id}`} />)}
-        </div>
+        <MovieGrid
+          movies={movies}
+          rankFrom={!filtering && cat === "trending" ? (page - 1) * 20 + 1 : undefined}
+          eager={6}
+          className="mt-7"
+        />
       ) : (
         <div className="mt-10 rounded-xl border border-dashed border-line p-10 text-center">
           <p className="text-lg font-semibold">Nothing found</p>

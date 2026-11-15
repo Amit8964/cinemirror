@@ -4,7 +4,9 @@ import type { TitleCardData } from "./types";
 // Set TMDB_API_KEY to either the v3 "API Key" or the v4 "API Read Access Token".
 // Without a key every function returns empty data and the site simply hides TMDB sections.
 
-const BASE = "https://api.themoviedb.org/3";
+// api.tmdb.org is TMDB's official alternate API host. Some Indian ISPs (e.g. Jio) DNS-block
+// api.themoviedb.org, which made every call hang until the timeout; the alternate host is not blocked.
+const BASE = (process.env.TMDB_API_BASE?.trim() || "https://api.tmdb.org/3").replace(/\/+$/, "");
 export const IMG = "https://image.tmdb.org/t/p";
 
 export function tmdbEnabled(): boolean {
@@ -16,6 +18,7 @@ export interface TmdbMovie {
   title: string;
   overview: string;
   year: number | null;
+  releaseDate: string; // "YYYY-MM-DD", or "" when unknown
   posterUrl: string;
   backdropUrl: string;
   rating: number; // 0-10
@@ -63,6 +66,7 @@ function mapMovie(r: Raw): TmdbMovie {
     title: String(r.title ?? r.name ?? ""),
     overview: String(r.overview ?? ""),
     year,
+    releaseDate: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "",
     posterUrl: img("w342", r.poster_path),
     backdropUrl: img("w1280", r.backdrop_path),
     rating: Number(r.vote_average ?? 0),
@@ -87,8 +91,31 @@ export const CATEGORIES: Record<Category, string> = {
 };
 
 export async function listCategory(cat: Category, page = 1, region = "IN"): Promise<TmdbMovie[]> {
-  if (cat === "trending") return mapList(await call("/trending/movie/week", { page }));
+  if (cat === "trending") return getTrendingMovies({ window: "week", page });
   return mapList(await call(`/movie/${cat}`, { page, region }));
+}
+
+export type TrendingWindow = "day" | "week";
+
+/**
+ * Trending movies with id, title, poster, release date and rating.
+ * Cached on the server (30 min for "day", 1 h for "week"), so repeat views never wait on TMDB.
+ */
+export async function getTrendingMovies({
+  window = "week", page = 1, limit = 20,
+}: { window?: TrendingWindow; page?: number; limit?: number } = {}): Promise<TmdbMovie[]> {
+  const w: TrendingWindow = window === "day" ? "day" : "week";
+  const p = Math.min(Math.max(Math.trunc(page) || 1, 1), 500);
+  return mapList(await call(`/trending/movie/${w}`, { page: p }, w === "day" ? 1800 : 3600), limit);
+}
+
+/**
+ * Responsive `srcset` for a poster URL from this module (185/342/500 px wide, same CDN path),
+ * so phones download the small file and retina screens the sharp one. Undefined for non-TMDB URLs.
+ */
+export function posterSrcSet(url: string): string | undefined {
+  const m = /^https:\/\/image\.tmdb\.org\/t\/p\/w\d+(\/[\w.-]+)$/.exec(url);
+  return m ? [185, 342, 500].map((w) => `${IMG}/w${w}${m[1]} ${w}w`).join(", ") : undefined;
 }
 
 /** Popular movies in one original language (hi = Bollywood, ta/te/ml/kn = South Indian, ko = Korean…). */

@@ -1,11 +1,12 @@
 import Link from "next/link";
 import ContinueWatching from "@/components/ContinueWatching";
 import HeroCarousel, { type HeroSlide } from "@/components/HeroCarousel";
+import MovieGrid from "@/components/MovieGrid";
 import Shelf, { ShelfItem } from "@/components/Shelf";
 import TitleCard from "@/components/TitleCard";
 import { listTitles, toCard, trendingSlugs } from "@/lib/titles";
 import {
-  discoverByLanguage, discoverTv, listCategory, listTv, showToCard, tmdbEnabled, tmdbToCard,
+  discoverByLanguage, discoverTv, getTrendingMovies, listCategory, listTv, showToCard, tmdbEnabled, tmdbToCard,
   type TmdbMovie, type TmdbShow,
 } from "@/lib/tmdb";
 import type { Title } from "@/lib/types";
@@ -55,6 +56,25 @@ export default async function HomePage() {
           <Shelf title="Most watched here">
             {trendingLib.map((t) => <ShelfItem key={t.id}><TitleCard card={toCard(t)} /></ShelfItem>)}
           </Shelf>
+        )}
+
+        {rows.trendingToday.length >= 6 && (
+          <section className="mx-auto mt-12 max-w-7xl px-4 sm:px-6">
+            <div className="flex items-end justify-between gap-4">
+              <div>
+                <p className="text-[11px] font-bold tracking-[0.2em] text-accent uppercase">Trending today</p>
+                <h2 className="font-display text-3xl tracking-wide sm:text-4xl">Top 10 movies right now</h2>
+              </div>
+              {seeAll("/discover?cat=trending")}
+            </div>
+            {/* 6 cards on phones, 9 on tablets, all 10 on desktop — always full rows */}
+            <MovieGrid
+              movies={rows.trendingToday}
+              rankFrom={1}
+              columns="grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 max-sm:[&>li:nth-child(n+7)]:hidden sm:max-lg:[&>li:nth-child(n+10)]:hidden"
+              className="mt-5"
+            />
+          </section>
         )}
 
         {rows.movies.map((r) => (
@@ -118,10 +138,11 @@ function buildSlides(titles: Title[], heroMovies: TmdbMovie[]): HeroSlide[] {
 
 type Row<T> = { title: string; href: string; items: T[] };
 
-async function loadTmdbRows(enabled: boolean): Promise<{ heroMovies: TmdbMovie[]; movies: Row<TmdbMovie>[]; series: Row<TmdbShow>[] }> {
-  if (!enabled) return { heroMovies: [], movies: [], series: [] };
+async function loadTmdbRows(enabled: boolean): Promise<{
+  heroMovies: TmdbMovie[]; trendingToday: TmdbMovie[]; movies: Row<TmdbMovie>[]; series: Row<TmdbShow>[];
+}> {
+  if (!enabled) return { heroMovies: [], trendingToday: [], movies: [], series: [] };
   const movieDefs = [
-    { title: "Trending movies", href: "/discover?cat=trending", load: () => listCategory("trending") },
     { title: "Latest Bollywood", href: "/discover?lang=hi", load: () => discoverByLanguage("hi") },
     { title: "In cinemas now", href: "/discover?cat=now_playing", load: () => listCategory("now_playing") },
     { title: "South Indian hits", href: "/discover?lang=te", load: () => discoverByLanguage("te") },
@@ -135,13 +156,14 @@ async function loadTmdbRows(enabled: boolean): Promise<{ heroMovies: TmdbMovie[]
     { title: "K-dramas", href: "/series?lang=ko", load: () => discoverTv({ lang: "ko" }) },
     { title: "Top rated series", href: "/series?cat=top_rated", load: () => listTv("top_rated") },
   ];
-  const [m, s] = await Promise.all([
+  // Everything in parallel; each TMDB call is cached server-side, so this is near-instant after the first view.
+  const [heroMovies, trendingToday, m, s] = await Promise.all([
+    getTrendingMovies({ window: "week" }),
+    getTrendingMovies({ window: "day", limit: 10 }),
     Promise.all(movieDefs.map((d) => d.load())),
     Promise.all(seriesDefs.map((d) => d.load())),
   ]);
   const movies = movieDefs.map((d, i) => ({ title: d.title, href: d.href, items: m[i] })).filter((r) => r.items.length >= 3);
   const series = seriesDefs.map((d, i) => ({ title: d.title, href: d.href, items: s[i] })).filter((r) => r.items.length >= 3);
-  // Interleave: two movie rows, one series row, …
-  const out: { movies: Row<TmdbMovie>[]; series: Row<TmdbShow>[] } = { movies, series };
-  return { heroMovies: m[0] ?? [], ...out };
+  return { heroMovies, trendingToday, movies, series };
 }
