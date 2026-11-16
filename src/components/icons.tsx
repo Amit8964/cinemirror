@@ -53,4 +53,11 @@ export const FilmIcon = (p: P) => <Stroke {...p}><rect x="3" y="3" width="18" he
 export const TvIcon = (p: P) => <Stroke {...p}><rect x="2.5" y="6" width="19" height="13" rx="2" /><path d="m8 2.5 4 3.5 4-3.5" /></Stroke>;
 export const BookmarkIcon = (p: P) => <Stroke {...p}><path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4.5L5 21V4a1 1 0 0 1 1-1Z" /></Stroke>;
 export const ChevronDownIcon = (p: P) => <Stroke {...p}><path d="m6 9 6 6 6-6" /></Stroke>;
+export const MailIcon = (p: P) => <Stroke {...p}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3.5 6.5 8.5 6.5 8.5-6.5" /></Stroke>;
+export const PhoneIcon = (p: P) => <Stroke {...p}><path d="M5 3h3.5l1.8 4.5-2.3 1.4a11 11 0 0 0 5.1 5.1l1.4-2.3L19 13.5V17a2 2 0 0 1-2 2A15 15 0 0 1 3 5a2 2 0 0 1 2-2Z" /></Stroke>;
+export const ShieldIcon = (p: P) => <Stroke {...p}><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6L12 3Z" /><path d="m9 12 2.2 2.2L15.5 10" /></Stroke>;
+export const FlagIcon = (p: P) => <Stroke {...p}><path d="M5 21V4" /><path d="M5 4h11l-1.8 4L16 12H5" /></Stroke>;
+export const ClockIcon = (p: P) => <Stroke {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></Stroke>;
+export const AlertIcon = (p: P) => <Stroke {...p}><path d="M12 3.5 2.5 20h19L12 3.5Z" /><path d="M12 10v4.5M12 17.5v.01" /></Stroke>;
+export const LinkIcon = (p: P) => <Stroke {...p}><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></Stroke>;
 export const StarIcon = (p: P) => <Svg {...p}><path d="m12 2.8 2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8L12 2.8Z" /></Svg>;

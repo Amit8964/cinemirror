@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import Player from "@/components/Player";
+import YouTubeFrame from "@/components/YouTubeFrame";
 import type { SourceType, Subtitle } from "@/lib/types";
 import { detectSourceType } from "@/lib/util";
 
 const label = "block text-sm font-semibold";
 const hint = "mt-1 text-xs font-normal text-muted";
+
+const isType = (f: string): f is SourceType => f === "hls" || f === "mp4" || f === "youtube";
 
 const SAMPLE = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
 
@@ -28,7 +31,7 @@ export default function SourcePreview({
   const [playing, setPlaying] = useState<{ src: string; type: SourceType } | null>(null);
 
   const clean = url.trim();
-  const resolved: SourceType = format === "hls" || format === "mp4" ? format : detectSourceType(clean);
+  const resolved: SourceType = isType(format) ? format : detectSourceType(clean);
   const valid = /^(https?:\/\/|\/)/i.test(clean);
 
   const play = () => {
@@ -49,7 +52,7 @@ export default function SourcePreview({
             onPaste={(e) => {
               const pasted = e.clipboardData.getData("text").trim();
               if (/^https?:\/\//i.test(pasted)) {
-                const type = format === "hls" || format === "mp4" ? format : detectSourceType(pasted);
+                const type = isType(format) ? format : detectSourceType(pasted);
                 setTimeout(() => setPlaying({ src: pasted, type }), 0);
               }
             }}
@@ -67,7 +70,7 @@ export default function SourcePreview({
           </button>
         </div>
         <p className={hint}>
-          Paste an HLS playlist (.m3u8) or MP4 link — it starts playing below so you can check it works. Files in{" "}
+          Paste an HLS playlist (.m3u8), MP4 or YouTube link — it starts playing below so you can check it works. Files in{" "}
           <code>public/media</code> can be used as <code>/media/film.mp4</code>.{" "}
           {!clean && (
             <button type="button" className="font-semibold text-accent hover:underline" onClick={() => { setUrl(SAMPLE); setPlaying({ src: SAMPLE, type: "hls" }); }}>
@@ -84,7 +87,7 @@ export default function SourcePreview({
           <option value="hls">HLS (.m3u8)</option>
           <option value="mp4">MP4 / WebM file</option>
         </select>
-        {format === "auto" && clean && <p className={hint}>Detected: {resolved === "hls" ? "HLS stream" : "video file"}</p>}
+        {format === "auto" && clean && <p className={hint}>Detected: {resolved === "hls" ? "HLS stream" : resolved === "youtube" ? "YouTube video" : "video file"}</p>}
       </label>
 
       <div className="sm:col-span-2">
@@ -100,6 +103,9 @@ export default function SourcePreview({
               </button>
             </div>
             <div className="aspect-video">
+              {playing.type === "youtube" ? (
+                <YouTubeFrame url={playing.src} title={title || "Preview"} autoPlay />
+              ) : (
               <Player
                 key={`${playing.type}:${playing.src}`}
                 src={playing.src}
@@ -111,6 +117,7 @@ export default function SourcePreview({
                 noProgress
                 autoPlay
               />
+              )}
             </div>
           </div>
         ) : (

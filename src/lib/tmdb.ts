@@ -4,7 +4,9 @@ import type { TitleCardData } from "./types";
 // Set TMDB_API_KEY to either the v3 "API Key" or the v4 "API Read Access Token".
 // Without a key every function returns empty data and the site simply hides TMDB sections.
 
-const BASE = "https://api.themoviedb.org/3";
+// api.tmdb.org is TMDB's official alternate API host. Some Indian ISPs (e.g. Jio) DNS-block
+// api.themoviedb.org, which made every call hang until the timeout; the alternate host is not blocked.
+const BASE = (process.env.TMDB_API_BASE?.trim() || "https://api.tmdb.org/3").replace(/\/+$/, "");
 export const IMG = "https://image.tmdb.org/t/p";
 
 export function tmdbEnabled(): boolean {
@@ -16,6 +18,7 @@ export interface TmdbMovie {
   title: string;
   overview: string;
   year: number | null;
+  releaseDate: string; // "YYYY-MM-DD", or "" when unknown
   posterUrl: string;
   backdropUrl: string;
   rating: number; // 0-10
@@ -63,6 +66,7 @@ function mapMovie(r: Raw): TmdbMovie {
     title: String(r.title ?? r.name ?? ""),
     overview: String(r.overview ?? ""),
     year,
+    releaseDate: /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : "",
     posterUrl: img("w342", r.poster_path),
     backdropUrl: img("w1280", r.backdrop_path),
     rating: Number(r.vote_average ?? 0),
@@ -87,8 +91,31 @@ export const CATEGORIES: Record<Category, string> = {
 };
 
 export async function listCategory(cat: Category, page = 1, region = "IN"): Promise<TmdbMovie[]> {
-  if (cat === "trending") return mapList(await call("/trending/movie/week", { page }));
+  if (cat === "trending") return getTrendingMovies({ window: "week", page });
   return mapList(await call(`/movie/${cat}`, { page, region }));
+}
+
+export type TrendingWindow = "day" | "week";
+
+/**
+ * Trending movies with id, title, poster, release date and rating.
+ * Cached on the server (30 min for "day", 1 h for "week"), so repeat views never wait on TMDB.
+ */
+export async function getTrendingMovies({
+  window = "week", page = 1, limit = 20,
+}: { window?: TrendingWindow; page?: number; limit?: number } = {}): Promise<TmdbMovie[]> {
+  const w: TrendingWindow = window === "day" ? "day" : "week";
+  const p = Math.min(Math.max(Math.trunc(page) || 1, 1), 500);
+  return mapList(await call(`/trending/movie/${w}`, { page: p }, w === "day" ? 1800 : 3600), limit);
+}
+
+/**
+ * Responsive `srcset` for a poster URL from this module (185/342/500 px wide, same CDN path),
+ * so phones download the small file and retina screens the sharp one. Undefined for non-TMDB URLs.
+ */
+export function posterSrcSet(url: string): string | undefined {
+  const m = /^https:\/\/image\.tmdb\.org\/t\/p\/w\d+(\/[\w.-]+)$/.exec(url);
+  return m ? [185, 342, 500].map((w) => `${IMG}/w${w}${m[1]} ${w}w`).join(", ") : undefined;
 }
 
 /** Popular movies in one original language (hi = Bollywood, ta/te/ml/kn = South Indian, ko = Korean…). */
@@ -341,4 +368,54 @@ export async function getSeason(showId: number, season: number): Promise<TmdbEpi
 
 export function showToCard(s: TmdbShow): TitleCardData {
   return { slug: String(s.id), title: s.name, year: s.year, posterUrl: s.posterUrl, genres: [], durationMin: null };
+}
+
+/* ───────────────────────────── link import matching ───────────────────────────── */
+
+const normTitle = (s: string) =>
+  s.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/^(the|a|an)\s+/, "").replace(/[^a-z0-9]+/g, "");
+
+/** 0..1 fuzzy similarity of two titles (Dice coefficient over character bigrams, ignoring case, accents, "the" and punctuation). */
+export function titleSimilarity(a: string, b: string): number {
+  const x = normTitle(a);
+  const y = normTitle(b);
+  if (!x || !y) return 0;
+  if (x === y) return 1;
+  if (x.length < 2 || y.length < 2) return 0;
+  const grams = (s: string) => {
+    const m = new Map<string, number>();
+    for (let i = 0; i < s.length - 1; i++) m.set(s.slice(i, i + 2), (m.get(s.slice(i, i + 2)) ?? 0) + 1);
+    return m;
+  };
+  const ga = grams(x);
+  const gb = grams(y);
+  let hits = 0;
+  for (const [g, n] of ga) hits += Math.min(n, gb.get(g) ?? 0);
+  return (2 * hits) / (x.length - 1 + (y.length - 1));
+}
+
+/** Below this similarity a TMDB result is shown as a candidate but never picked automatically. */
+export const AUTO_MATCH_MIN = 0.6;
+
+/** TMDB movies that best match a title guessed from a link, best first. */
+export async function matchMovie(title: string, year: number | null): Promise<TmdbMovie[]> {
+  const query = title.trim().slice(0, 100);
+  if (!query) return [];
+  const [withYear, any] = await Promise.all([
+    year ? call("/search/movie", { query, year, include_adult: "false" }, 600) : Promise.resolve(null),
+    call("/search/movie", { query, include_adult: "false" }, 600),
+  ]);
+  const seen = new Set<number>();
+  const list = [...mapList(withYear, 8), ...mapList(any, 10)].filter((m) => !seen.has(m.id) && seen.add(m.id));
+  const q = normTitle(query);
+  const score = (m: TmdbMovie, i: number) => {
+    let s = -i * 0.05; // keep TMDB's relevance order as the tie-breaker
+    const t = normTitle(m.title);
+    if (t === q) s += 3;
+    else if (t.startsWith(q) || q.startsWith(t)) s += 1;
+    s += titleSimilarity(m.title, query) * 2; // fuzzy: typos, subtitles, alternate spellings
+    if (year && m.year) s += m.year === year ? 2 : Math.abs(m.year - year) <= 1 ? 1 : 0;
+    return s;
+  };
+  return list.map((m, i) => ({ m, s: score(m, i) })).sort((a, b) => b.s - a.s).map((x) => x.m).slice(0, 8);
 }

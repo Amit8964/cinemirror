@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PlayIcon } from "@/components/icons";
+import { FlagIcon, PlayIcon } from "@/components/icons";
 import { MyListButton } from "@/components/MyList";
 import Poster from "@/components/Poster";
 import TitleCard from "@/components/TitleCard";
@@ -73,7 +73,7 @@ export default async function TitlePage({ params }: PageProps<"/title/[slug]">) 
             <p className="mt-5 max-w-2xl text-base leading-relaxed text-text/85">{title.description}</p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link href={`/watch/${title.slug}`} className="btn btn-primary !px-7 !py-3 !text-base">
-                <PlayIcon /> Play
+                <PlayIcon /> {title.sourceType === "youtube" ? "Watch trailer" : "Play"}
               </Link>
               <MyListButton card={toCard(title)} />
             </div>
@@ -92,7 +92,15 @@ export default async function TitlePage({ params }: PageProps<"/title/[slug]">) 
             ))}
           </dl>
         )}
-        {title.credit && <p className="mt-4 text-sm text-muted">Credit: {title.credit}</p>}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          {title.credit ? <p className="text-sm text-muted">Credit: {title.credit}</p> : <span />}
+          <Link
+            href={`/dmca?url=${encodeURIComponent(`/title/${title.slug}`)}#report`}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-danger"
+          >
+            <FlagIcon /> Report this title
+          </Link>
+        </div>
 
         {related.length > 0 && (
           <section className="mt-12">

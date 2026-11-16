@@ -8,7 +8,7 @@ import { createPartner, deletePartner, rotatePartnerKey, updatePartner } from "@
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { createTitle, deleteTitle, updateTitle, type TitleInput } from "@/lib/titles";
 import type { Subtitle } from "@/lib/types";
-import { detectSourceType, normalizeDomain, safeUrl, slugify } from "@/lib/util";
+import { detectSourceType, normalizeDomain, safeUrl, slugify, youtubeId } from "@/lib/util";
 
 export interface FormState {
   error?: string;
@@ -65,7 +65,7 @@ export async function saveTitleAction(_prev: FormState, fd: FormData): Promise<F
   const title = str(fd, "title");
   if (!title) return fail("Title is required.");
 
-  const sourceUrl = safeUrl(str(fd, "sourceUrl"));
+  let sourceUrl = safeUrl(str(fd, "sourceUrl"));
   if (!sourceUrl) return fail("Video source must be an http(s) URL or a path starting with “/”.");
 
   const posterRaw = str(fd, "posterUrl");
@@ -78,7 +78,14 @@ export async function saveTitleAction(_prev: FormState, fd: FormData): Promise<F
 
   const year = Number(str(fd, "year"));
   const duration = Number(str(fd, "durationMin"));
-  const sourceType = str(fd, "sourceType");
+  const typeField = str(fd, "sourceType");
+  const sourceType =
+    typeField === "hls" || typeField === "mp4" || typeField === "youtube" ? typeField : detectSourceType(sourceUrl);
+  if (sourceType === "youtube") {
+    const yt = youtubeId(sourceUrl);
+    if (!yt) return fail("That doesn't look like a YouTube video link.");
+    sourceUrl = `https://www.youtube.com/watch?v=${yt}`;
+  }
 
   const input: TitleInput = {
     slug: slugify(str(fd, "slug") || title),
@@ -92,7 +99,7 @@ export async function saveTitleAction(_prev: FormState, fd: FormData): Promise<F
     posterUrl: safeUrl(posterRaw),
     backdropUrl: safeUrl(backdropRaw),
     sourceUrl,
-    sourceType: sourceType === "hls" || sourceType === "mp4" ? sourceType : detectSourceType(sourceUrl),
+    sourceType,
     subtitles: subs.list,
     credit: str(fd, "credit").slice(0, 300),
     featured: fd.get("featured") === "on",

@@ -25,8 +25,8 @@ export default function TitleForm({ title, prefill }: { title?: Title; prefill?:
       <fieldset className="grid gap-4 rounded-xl border border-line bg-surface p-5 sm:grid-cols-2">
         <legend className="px-1 text-xs font-bold tracking-wider text-muted uppercase">Video</legend>
         <SourcePreview
-          defaultUrl={val("sourceUrl", title?.sourceUrl)}
-          defaultType={v?.sourceType ?? (title ? title.sourceType : "auto")}
+          defaultUrl={val("sourceUrl", src?.sourceUrl)}
+          defaultType={v?.sourceType ?? (src?.sourceUrl ? (src.sourceType ?? "auto") : "auto")}
           title={src?.title ?? ""}
           poster={src?.backdropUrl || src?.posterUrl || undefined}
           subtitles={title?.subtitles}
