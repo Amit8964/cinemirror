@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { PlayIcon } from "@/components/icons";
+import ExternalStreamPlayer from "@/components/ExternalStreamPlayer";
+import { FlagIcon, PlayIcon } from "@/components/icons";
 import Poster from "@/components/Poster";
 import TitleCard from "@/components/TitleCard";
+import { getStreamPattern } from "@/lib/stream";
 import { findLibraryMatch } from "@/lib/titles";
 import { getMovie, tmdbToCard } from "@/lib/tmdb";
 import { formatDuration, hueFor } from "@/lib/util";
@@ -25,6 +27,7 @@ export default async function MoviePage({ params }: PageProps<"/movie/[id]">) {
   if (!m) notFound();
 
   const inLibrary = await findLibraryMatch(m.title, m.year);
+  const streamPattern = getStreamPattern();
   const hue = hueFor(m.title);
   const facts = [
     ["Released", m.year],
@@ -69,6 +72,10 @@ export default async function MoviePage({ params }: PageProps<"/movie/[id]">) {
                 <Link href={`/watch/${inLibrary.slug}`} className="btn btn-primary !px-7 !py-3 !text-base">
                   <PlayIcon /> Play
                 </Link>
+              ) : streamPattern ? (
+                <a href="#watch" className="btn btn-primary !px-7 !py-3 !text-base">
+                  <PlayIcon /> Play
+                </a>
               ) : (
                 <span className="rounded-lg border border-line px-4 py-3 text-sm font-semibold text-muted">
                   Not in the CineMirror library yet
@@ -92,6 +99,25 @@ export default async function MoviePage({ params }: PageProps<"/movie/[id]">) {
               </div>
             ))}
           </dl>
+        )}
+
+        {streamPattern && !inLibrary && (
+          <section id="watch" className="mt-10 scroll-mt-24">
+            <h2 className="font-display text-3xl tracking-wide">Watch</h2>
+            <ExternalStreamPlayer
+              resourceId={m.id}
+              pattern={streamPattern}
+              title={`${m.title} — player`}
+              poster={m.backdropUrl}
+              className="mt-4 max-w-5xl"
+            />
+            <Link
+              href={`/dmca?url=${encodeURIComponent(`/movie/${m.id}`)}#report`}
+              className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-danger"
+            >
+              <FlagIcon /> Report this video
+            </Link>
+          </section>
         )}
 
         {m.trailerKey && (

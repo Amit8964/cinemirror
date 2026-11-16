@@ -31,6 +31,62 @@ export interface Resolved {
   error?: string;
 }
 
+/**
+ * A Provider knows how to turn one kind of link into streams + metadata.
+ * To support a new source, write one and add it to PROVIDERS (or call registerProvider) —
+ * resolveLink, the importer, TMDB matching and the admin UI need no changes.
+ * Providers must fetch through getJson / getPage so private-network addresses stay blocked.
+ */
+export interface StreamProvider {
+  name: string;
+  /** Cheap, synchronous check: does this provider handle this URL? */
+  matches(url: URL): boolean;
+  resolve(input: string, url: URL): Promise<Resolved>;
+}
+
+const hostOf = (u: URL) => u.hostname.toLowerCase().replace(/^www\./, "");
+
+const youtubeProvider: StreamProvider = {
+  name: "YouTube",
+  matches: (u) => !!youtubeId(u.toString()),
+  resolve: (input) => fromYouTube(input),
+};
+
+const archiveProvider: StreamProvider = {
+  name: "Internet Archive",
+  matches: (u) => (hostOf(u) === "archive.org" || hostOf(u).endsWith(".archive.org")) && !!archiveId(u),
+  resolve: (input, u) => fromArchive(input, archiveId(u)),
+};
+
+const commonsProvider: StreamProvider = {
+  name: "Wikimedia Commons",
+  matches: (u) => /(^|\.)commons\.(m\.)?wikimedia\.org$/.test(hostOf(u)) && !!commonsFile(u),
+  resolve: (input, u) => fromCommons(input, commonsFile(u)),
+};
+
+const directFileProvider: StreamProvider = {
+  name: "Direct file",
+  matches: (u) => PLAYABLE.test(u.pathname),
+  resolve: async (input, u) => fromDirect(input, u),
+};
+
+/**
+ * Sample "generic video container" provider: reads a public web page's DOM/meta data for
+ * <video>/<source> tags, og:video, JSON-LD contentUrl, and .m3u8/.mp4 links, and licence info.
+ */
+const genericPageProvider: StreamProvider = {
+  name: "Generic page",
+  matches: () => true,
+  resolve: (input, u) => fromPage(input, u),
+};
+
+/** Order matters: specific providers first. The generic page provider is the fallback in resolveLink. */
+const PROVIDERS: StreamProvider[] = [youtubeProvider, archiveProvider, commonsProvider, directFileProvider];
+
+export function registerProvider(p: StreamProvider): void {
+  PROVIDERS.unshift(p);
+}
+
 const UA = "CineMirror/1.0 (media link importer)";
 const PLAYABLE = /\.(m3u8|mp4|m4v|webm|mov)(\?|#|$)/i;
 
@@ -55,17 +111,9 @@ export async function resolveLink(raw: string): Promise<Resolved> {
   const host = url.hostname.toLowerCase().replace(/^www\./, "");
 
   try {
-    if (youtubeId(input)) return await fromYouTube(input);
-    if (host === "archive.org" || host.endsWith(".archive.org")) {
-      const id = archiveId(url);
-      if (id) return await fromArchive(input, id);
-    }
-    if (/(^|\.)commons\.(m\.)?wikimedia\.org$/.test(host)) {
-      const file = commonsFile(url);
-      if (file) return await fromCommons(input, file);
-    }
-    if (PLAYABLE.test(url.pathname)) return fromDirect(input, url);
-    return await fromPage(input, url);
+    // First provider that claims the URL wins; the generic page provider is the catch-all.
+    const provider = PROVIDERS.find((p) => p.matches(url)) ?? genericPageProvider;
+    return await provider.resolve(input, url);
   } catch (err) {
     const msg = err instanceof Error && err.message.startsWith("!") ? err.message.slice(1) : "Couldn't read that link (the site didn't respond or blocked the request).";
     return { ...blank(input, host || "Link"), error: msg };

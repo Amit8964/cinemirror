@@ -1,5 +1,5 @@
 import { resolveLink, type FoundStream, type Resolved } from "./resolve";
-import { getMovie, LANGUAGES, matchMovie, tmdbEnabled, type TmdbDetails, type TmdbMovie } from "./tmdb";
+import { AUTO_MATCH_MIN, getMovie, LANGUAGES, matchMovie, titleSimilarity, tmdbEnabled, type TmdbDetails, type TmdbMovie } from "./tmdb";
 import type { Title } from "./types";
 import { slugify } from "./util";
 
@@ -49,7 +49,9 @@ export async function importFromLink(link: string, pick: { stream?: string; tmdb
   const tmdbMode: ImportResult["tmdbMode"] = tmdbParam === "none" ? "none" : forcedId ? "chosen" : "auto";
 
   const candidates = tmdbEnabled() && resolved.titleGuess ? await matchMovie(resolved.titleGuess, resolved.yearGuess) : [];
-  const movieId = tmdbMode === "none" ? 0 : forcedId || candidates[0]?.id || 0;
+  // Only auto-pick a match that is close enough to the scraped title; otherwise the admin chooses.
+  const confident = candidates[0] && titleSimilarity(candidates[0].title, resolved.titleGuess) >= AUTO_MATCH_MIN ? candidates[0].id : 0;
+  const movieId = tmdbMode === "none" ? 0 : forcedId || confident;
   const movie = movieId ? await getMovie(movieId) : null;
 
   const options: StreamOption[] = [...resolved.streams];

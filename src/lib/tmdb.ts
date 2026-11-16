@@ -375,6 +375,28 @@ export function showToCard(s: TmdbShow): TitleCardData {
 const normTitle = (s: string) =>
   s.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/^(the|a|an)\s+/, "").replace(/[^a-z0-9]+/g, "");
 
+/** 0..1 fuzzy similarity of two titles (Dice coefficient over character bigrams, ignoring case, accents, "the" and punctuation). */
+export function titleSimilarity(a: string, b: string): number {
+  const x = normTitle(a);
+  const y = normTitle(b);
+  if (!x || !y) return 0;
+  if (x === y) return 1;
+  if (x.length < 2 || y.length < 2) return 0;
+  const grams = (s: string) => {
+    const m = new Map<string, number>();
+    for (let i = 0; i < s.length - 1; i++) m.set(s.slice(i, i + 2), (m.get(s.slice(i, i + 2)) ?? 0) + 1);
+    return m;
+  };
+  const ga = grams(x);
+  const gb = grams(y);
+  let hits = 0;
+  for (const [g, n] of ga) hits += Math.min(n, gb.get(g) ?? 0);
+  return (2 * hits) / (x.length - 1 + (y.length - 1));
+}
+
+/** Below this similarity a TMDB result is shown as a candidate but never picked automatically. */
+export const AUTO_MATCH_MIN = 0.6;
+
 /** TMDB movies that best match a title guessed from a link, best first. */
 export async function matchMovie(title: string, year: number | null): Promise<TmdbMovie[]> {
   const query = title.trim().slice(0, 100);
@@ -391,6 +413,7 @@ export async function matchMovie(title: string, year: number | null): Promise<Tm
     const t = normTitle(m.title);
     if (t === q) s += 3;
     else if (t.startsWith(q) || q.startsWith(t)) s += 1;
+    s += titleSimilarity(m.title, query) * 2; // fuzzy: typos, subtitles, alternate spellings
     if (year && m.year) s += m.year === year ? 2 : Math.abs(m.year - year) <= 1 ? 1 : 0;
     return s;
   };
