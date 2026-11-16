@@ -17,6 +17,7 @@ export default function TitleForm({ title, prefill }: { title?: Title; prefill?:
   const checked = (key: string, initial: boolean) => (v ? v[key] === "on" : initial);
   const src: Partial<Title> | undefined = title ?? prefill;
   const subs = title?.subtitles.map((s) => `${s.label} | ${s.lang} | ${s.url}`).join("\n") ?? "";
+  const versions = title?.versions.map((x) => `${x.label} | ${x.lang} | ${x.src}`).join("\n") ?? "";
 
   return (
     <form action={action} className="space-y-6">
@@ -31,6 +32,20 @@ export default function TitleForm({ title, prefill }: { title?: Title; prefill?:
           poster={src?.backdropUrl || src?.posterUrl || undefined}
           subtitles={title?.subtitles}
         />
+        <label className={`${label} sm:col-span-2`}>
+          Language / quality versions
+          <textarea
+            name="versions"
+            rows={4}
+            defaultValue={val("versions", versions)}
+            placeholder={"Hindi 1080p | hi | https://cdn.example.com/film/hi-1080.m3u8\nHindi 720p | hi | https://cdn.example.com/film/hi-720.m3u8\nEnglish 1080p | en | https://cdn.example.com/film/en-1080.m3u8"}
+            className="field mt-1 font-mono !text-xs"
+          />
+          <p className={hint}>
+            One per line: Label | language code | URL of an .m3u8 or .mp4. These appear in the player&apos;s Language menu next to the main video above
+            (name that one with the “Language” field below). A single .m3u8 that already has several qualities or audio tracks needs no lines here — the player shows those itself.
+          </p>
+        </label>
         <label className={`${label} sm:col-span-2`}>
           Subtitles
           <textarea name="subtitles" rows={2} defaultValue={val("subtitles", subs)} placeholder="English | en | https://cdn.example.com/film/en.vtt" className="field mt-1 font-mono !text-xs" />

@@ -20,6 +20,13 @@ export const PUBLIC_SOURCES: { id: PublicSource; label: string; hint: string }[]
   { id: "commons", label: "Wikimedia Commons", hint: "Freely licensed videos" },
 ];
 
+/** Page URL for a Commons file title like "File:Nosferatu (1922).webm". The "File:" prefix must stay unescaped for the importer. */
+export function commonsFileUrl(title: string): string {
+  const m = title.match(/^(File):(.*)$/i);
+  const rest = (m ? m[2] : title).trim().replace(/ /g, "_");
+  return `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(rest)}`;
+}
+
 const UA = "CineMirror/1.0 (public stream search)";
 const PAGE_SIZE = 24;
 
@@ -102,7 +109,7 @@ async function searchCommons(q: string, page: number): Promise<PublicResult[]> {
       const bare = name.replace(/^File:/i, "").replace(/\.[a-z0-9]+$/i, "");
       return {
         source: "commons" as const,
-        url: `https://commons.wikimedia.org/wiki/${encodeURIComponent(name.replace(/ /g, "_"))}`,
+        url: commonsFileUrl(name),
         title: bare,
         year: yearOf(bare),
         thumb: str(info?.thumburl),

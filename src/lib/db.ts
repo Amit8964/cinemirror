@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS titles (
   source_url TEXT NOT NULL,
   source_type TEXT NOT NULL DEFAULT 'mp4',
   subtitles TEXT NOT NULL DEFAULT '[]',
+  audio_versions TEXT NOT NULL DEFAULT '[]',
   credit TEXT NOT NULL DEFAULT '',
   featured INTEGER NOT NULL DEFAULT 0,
   published INTEGER NOT NULL DEFAULT 1,
@@ -57,6 +58,40 @@ CREATE INDEX IF NOT EXISTS plays_partner ON plays(partner_id, started_at);
 CREATE INDEX IF NOT EXISTS plays_title ON plays(title_id, started_at);
 CREATE INDEX IF NOT EXISTS plays_seen ON plays(last_seen_at);
 
+-- Which TMDB titles the linked stream provider (Nxsha) can play; filled by the background sync.
+CREATE TABLE IF NOT EXISTS stream_links (
+  kind TEXT NOT NULL,
+  tmdb_id INTEGER NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  available INTEGER NOT NULL DEFAULT 0,
+  checked_at INTEGER NOT NULL,
+  PRIMARY KEY (kind, tmdb_id)
+);
+
+-- Same, per extra embed server (local-only servers, see local-servers.ts). The default server uses stream_links.
+CREATE TABLE IF NOT EXISTS server_links (
+  server_id TEXT NOT NULL,
+  kind TEXT NOT NULL,
+  tmdb_id INTEGER NOT NULL,
+  title TEXT NOT NULL DEFAULT '',
+  available INTEGER NOT NULL DEFAULT 0,
+  checked_at INTEGER NOT NULL,
+  PRIMARY KEY (server_id, kind, tmdb_id)
+);
+
+-- Extra embed servers, managed in Admin -> Servers (shown only while local extras are enabled).
+CREATE TABLE IF NOT EXISTS embed_servers (
+  id TEXT PRIMARY KEY,
+  label TEXT NOT NULL,
+  movie_url TEXT NOT NULL DEFAULT '',
+  tv_url TEXT NOT NULL DEFAULT '',
+  sandbox INTEGER NOT NULL DEFAULT 1,
+  referrer TEXT NOT NULL DEFAULT 'origin',
+  enabled INTEGER NOT NULL DEFAULT 1,
+  position INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS meta (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
@@ -79,6 +114,11 @@ function getClient(): Client {
 
 async function init(client: Client): Promise<void> {
   await client.executeMultiple(SCHEMA);
+  // Databases created before language versions existed: add the column once.
+  const cols = await client.execute("PRAGMA table_info(titles)");
+  if (!cols.rows.some((c) => c.name === "audio_versions")) {
+    await client.execute("ALTER TABLE titles ADD COLUMN audio_versions TEXT NOT NULL DEFAULT '[]'");
+  }
   if (process.env.SEED_DEMO === "false") return;
   const seeded = await client.execute("SELECT value FROM meta WHERE key = 'seeded'");
   if (seeded.rows.length) return;

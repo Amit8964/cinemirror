@@ -193,3 +193,9 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* Rows below the fold are not laid out or painted until they scroll near the screen (big win on long home pages). */
+.lazy-section {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 22rem;
+}

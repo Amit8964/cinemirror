@@ -161,7 +161,7 @@ function yearFrom(v: string): number | null {
 
 /* ───────────────────────────── fetching ───────────────────────────── */
 
-async function getJson(url: string): Promise<Record<string, unknown>> {
+export async function getJson(url: string): Promise<Record<string, unknown>> {
   const res = await fetch(url, {
     headers: { "user-agent": UA, accept: "application/json" },
     next: { revalidate: 600 },
@@ -266,7 +266,7 @@ async function fromYouTube(input: string): Promise<Resolved> {
 
 /* ───────────────────────────── Internet Archive ───────────────────────────── */
 
-function archiveId(url: URL): string {
+export function archiveId(url: URL): string {
   const m = url.pathname.match(/^\/(?:details|download|embed|stream)\/([^/?#]+)/);
   return m && /^[\w.-]+$/.test(m[1]) ? m[1] : "";
 }

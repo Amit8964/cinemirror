@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { bulkImportAction } from "@/app/admin/actions";
 import Poster from "@/components/Poster";
 import { getTitlePlayCounts } from "@/lib/analytics";
 import { listTitles } from "@/lib/titles";
@@ -7,10 +8,40 @@ import { formatNumber } from "@/lib/util";
 
 export const metadata: Metadata = { title: "Titles" };
 
-export default async function TitlesPage() {
-  const [titles, plays] = await Promise.all([listTitles({ includeDrafts: true }), getTitlePlayCounts()]);
+export default async function TitlesPage({ searchParams }: PageProps<"/admin/titles">) {
+  const [titles, plays, sp] = await Promise.all([listTitles({ includeDrafts: true }), getTitlePlayCounts(), searchParams]);
+  const imported = Array.isArray(sp.imported) ? sp.imported[0] : sp.imported;
+  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v) ?? "";
+  const bulk = one(sp.bulk).match(/^(\d+)-(\d+)-(\d+)$/);
+  const nextBatch = Number.parseInt(one(sp.next), 10) || 0;
   return (
     <>
+      {bulk && (
+        <div className="mb-4 rounded-lg border border-line bg-surface px-3 py-2 text-sm">
+          <p>
+            Bulk import done: <b className="text-emerald-400">{bulk[1]} published</b>, <b className="text-amber-300">{bulk[2]} hidden drafts</b> to review,{" "}
+            <b className="text-muted">{bulk[3]} skipped</b>.
+          </p>
+          {one(sp.why) && <p className="mt-1 text-xs text-muted">Skipped: {one(sp.why)}</p>}
+          {nextBatch > 0 && one(sp.nlink) && (
+            <form action={bulkImportAction} className="mt-2">
+              <input type="hidden" name="link" value={one(sp.nlink)} />
+              <input type="hidden" name="batch" value={nextBatch} />
+              <button className="btn btn-ghost">Import next 20 (batch {nextBatch})</button>
+            </form>
+          )}
+        </div>
+      )}
+      {imported === "published" && (
+        <p className="mb-4 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-400">
+          Imported and published — it is now on the home page.
+        </p>
+      )}
+      {imported === "draft" && (
+        <p className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">
+          Imported as a hidden draft because the source didn&apos;t confirm a public-domain or free licence. Open it and publish only if you have the rights.
+        </p>
+      )}
       <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">Titles</h1>

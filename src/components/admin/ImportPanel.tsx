@@ -1,5 +1,6 @@
 /* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
+import { bulkImportAction, quickImportAction } from "@/app/admin/actions";
 import type { ImportResult } from "@/lib/importer";
 
 const typeBadge = {
@@ -10,8 +11,10 @@ const typeBadge = {
 
 /** "Import from a link" box on the Add title page, plus what was found for the pasted link. */
 export default function ImportPanel({
-  link, result, stream, tmdb, tmdbEnabled,
+  link, result, stream, tmdb, tmdbEnabled, error, bulkLink = "",
 }: {
+  error?: string;
+  bulkLink?: string;
   link: string;
   result: ImportResult | null;
   stream: string;
@@ -44,8 +47,30 @@ export default function ImportPanel({
           className="field font-mono !text-xs"
           aria-label="Link to import"
         />
-        <button className="btn btn-primary shrink-0">Find streams</button>
+        <button className="btn btn-ghost shrink-0">Find streams</button>
+        <button formAction={quickImportAction} formMethod="post" className="btn btn-primary shrink-0" title="Find the stream and TMDB poster, save it, and show it on the home page">
+          Import &amp; publish
+        </button>
       </form>
+      <details className="mt-4 rounded-lg border border-line p-3" open={!!bulkLink}>
+        <summary className="cursor-pointer text-sm font-bold">Bulk import</summary>
+        <p className="mt-2 text-xs text-muted">
+          Paste an <b>archive.org collection</b> or a <b>Wikimedia Commons category</b> to import every film in it (20 per batch, published only when the
+          source confirms a free licence). Paste a <b>YouTube playlist or channel</b> link (<code>?list=…</code> or <code>/channel/UC…</code>) to import its latest 15
+          videos as hidden drafts — YouTube doesn&apos;t state a licence, so you publish the ones you have the right to. Paste any <b>other page</b> to import every distinct video on that one page as hidden drafts to review.
+          It never crawls a whole site.
+        </p>
+        <form action={bulkImportAction} className="mt-2 flex flex-wrap gap-2">
+          <input name="link" type="url" required defaultValue={bulkLink} placeholder="https://archive.org/details/feature_films" className="field min-w-48 flex-1 font-mono !text-xs" aria-label="Collection, category or page link" />
+          <input name="batch" type="number" min={1} max={50} defaultValue={1} className="field !w-20" aria-label="Batch number" title="Batch number (20 films each)" />
+          <button className="btn btn-primary shrink-0">Import all</button>
+        </form>
+      </details>
+      {error && <p className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-amber-300">{error}</p>}
+      <p className="mt-2 text-xs text-muted">
+        <b>Import &amp; publish</b> saves it in one step and puts it on the home page when the source confirms it&apos;s public domain or freely licensed;
+        otherwise it&apos;s saved as a hidden draft. <b>Find streams</b> lets you review first.
+      </p>
 
       {result && (
         <div className="mt-5 space-y-5">
@@ -120,6 +145,15 @@ export default function ImportPanel({
                 </div>
               )}
             </div>
+          )}
+
+          {result.chosen >= 0 && (
+            <form action={quickImportAction}>
+              <input type="hidden" name="link" value={link} />
+              <input type="hidden" name="stream" value={stream} />
+              <input type="hidden" name="tmdb" value={tmdb} />
+              <button className="btn btn-primary">Import &amp; publish with these choices</button>
+            </form>
           )}
 
           {result.chosen >= 0 && (

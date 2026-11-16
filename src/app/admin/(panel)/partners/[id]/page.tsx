@@ -7,6 +7,7 @@ import { ConfirmSubmit, CopyButton } from "@/components/admin/bits";
 import EmbedBuilder from "@/components/admin/EmbedBuilder";
 import PartnerForm from "@/components/admin/PartnerForm";
 import StatsView, { parseDays, RangeTabs } from "@/components/admin/StatsView";
+import { getPlayerConfig, normalizePlayerUrl } from "@/lib/hosted-player";
 import { getPartner } from "@/lib/partners";
 import { listTitles } from "@/lib/titles";
 
@@ -23,6 +24,7 @@ export default async function PartnerPage({ params, searchParams }: PageProps<"/
   const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
   const origin = `${proto}://${host}`;
 
+  const playerOrigin = normalizePlayerUrl((await getPlayerConfig()).hostedUrl) ?? undefined;
   const card = "rounded-xl border border-line bg-surface p-5";
 
   return (
@@ -42,7 +44,7 @@ export default async function PartnerPage({ params, searchParams }: PageProps<"/
             Send this to {partner.name}. It contains their key, so every play is counted under their name
             {partner.allowedDomains.length ? ` and only works on ${partner.allowedDomains.join(", ")}.` : ". It is not restricted to a domain yet."}
           </p>
-          <EmbedBuilder origin={origin} apiKey={partner.apiKey} titles={titles} />
+          <EmbedBuilder origin={origin} apiKey={partner.apiKey} titles={titles} playerOrigin={playerOrigin} />
 
           <div className="mt-5 flex flex-wrap items-center gap-3 border-t border-line pt-4">
             <span className="text-xs font-semibold tracking-wider text-muted uppercase">Key</span>

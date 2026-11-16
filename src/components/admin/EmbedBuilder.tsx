@@ -9,8 +9,9 @@ interface Option {
 }
 
 /** Builds the iframe snippet a partner pastes into their site. */
-export default function EmbedBuilder({ origin, apiKey, titles }: { origin: string; apiKey: string; titles: Option[] }) {
+export default function EmbedBuilder({ origin, apiKey, titles, playerOrigin }: { origin: string; apiKey: string; titles: Option[]; playerOrigin?: string }) {
   const [slug, setSlug] = useState(titles[0]?.slug ?? "");
+  const [tmdb, setTmdb] = useState("");
   const [autoplay, setAutoplay] = useState(false);
   const [preview, setPreview] = useState(false);
 
@@ -19,7 +20,14 @@ export default function EmbedBuilder({ origin, apiKey, titles }: { origin: strin
   }
 
   const chosen = titles.find((t) => t.slug === slug) ?? titles[0];
-  const src = `${origin}/embed/${chosen.slug}?key=${apiKey}${autoplay ? "&autoplay=1" : ""}`;
+  // With a hosted player attached the code points at it: /player/<tmdb id> or /?slug=<slug>. Otherwise the built-in /embed page.
+  const tmdbId = /^[1-9]\d{0,9}$/.test(tmdb.trim()) ? tmdb.trim() : "";
+  const extra = autoplay ? "&autoplay=1" : "";
+  const src = playerOrigin
+    ? tmdbId
+      ? `${playerOrigin}/player/${tmdbId}?key=${apiKey}${extra}`
+      : `${playerOrigin}/?slug=${chosen.slug}&key=${apiKey}${extra}`
+    : `${origin}/embed/${chosen.slug}?key=${apiKey}${extra}`;
   const code = `<div style="position:relative;padding-top:56.25%">
   <iframe
     src="${src}"
@@ -40,6 +48,12 @@ export default function EmbedBuilder({ origin, apiKey, titles }: { origin: strin
             {titles.map((t) => <option key={t.slug} value={t.slug}>{t.title}</option>)}
           </select>
         </label>
+        {playerOrigin && (
+          <label className="block w-40 text-sm font-semibold">
+            or TMDB id
+            <input value={tmdb} onChange={(e) => setTmdb(e.target.value)} inputMode="numeric" placeholder="969681" className="field mt-1" />
+          </label>
+        )}
         <label className="flex cursor-pointer items-center gap-2 pb-2.5 text-sm font-semibold">
           <input type="checkbox" checked={autoplay} onChange={(e) => setAutoplay(e.target.checked)} className="h-4 w-4 accent-[var(--color-accent)]" />
           Autoplay

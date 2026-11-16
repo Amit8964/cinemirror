@@ -1,10 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { StarIcon } from "@/components/icons";
+import MultiServerPlayer from "@/components/MultiServerPlayer";
+import { FlagIcon, PlayIcon, StarIcon } from "@/components/icons";
 import Poster from "@/components/Poster";
 import TitleCard from "@/components/TitleCard";
-import { getSeason, getShow, showToCard } from "@/lib/tmdb";
+import { libraryIndex } from "@/lib/availability";
+import { resolveStreams } from "@/lib/stream-status";
+import { getActiveStreamPatterns } from "@/lib/hosted-player";
+import { getPlayerServers } from "@/lib/local-servers";
+import { linkIndex, serverLinkIndex } from "@/lib/stream-sync";
+import { getSeason, getShow, showToCard, type TmdbEpisode } from "@/lib/tmdb";
 import { hueFor } from "@/lib/util";
 
 export async function generateMetadata({ params }: PageProps<"/series/[id]">): Promise<Metadata> {
@@ -27,6 +33,21 @@ export default async function ShowPage({ params, searchParams }: PageProps<"/ser
   const season = show.seasons.find((x) => x.number === wanted) ?? show.seasons[0];
   const episodes = season ? await getSeason(show.id, season.number) : [];
   const hue = hueFor(show.name);
+  const hasStream = await libraryIndex();
+  const simStatus = await resolveStreams("tv", show.similar.map((x) => ({ id: x.id, title: x.name, year: x.year, date: x.firstAirDate })));
+  const similar = show.similar.filter((x) => simStatus.get(x.id) !== "hide").slice(0, 6);
+  const primaryTvPattern = (await linkIndex().catch(() => null))?.("tv", show.id) === "unavailable" ? null : (await getActiveStreamPatterns()).tv;
+  // Locally (LOCAL_EXTRA_SERVERS=on, dev only) extra servers are added after the configured one.
+  const sIdx = await serverLinkIndex().catch(() => null);
+  const tvServers = await getPlayerServers("tv", primaryTvPattern, (sid) => sIdx?.(sid, "tv", show.id) === "unavailable");
+  const tvPattern = tvServers[0]?.pattern ?? null;
+  const epParam = Number(Array.isArray(sp.episode) ? sp.episode[0] : sp.episode);
+  // Like the movie page, the player is always there: the chosen episode, otherwise the first one of the season.
+  const playing: TmdbEpisode | null = tvPattern && season
+    ? (Number.isInteger(epParam) && epParam > 0 ? episodes.find((e) => e.number === epParam) : undefined)
+      ?? episodes[0]
+      ?? { number: 1, name: "", overview: "", airDate: "", runtime: null, stillUrl: "", rating: 0 }
+    : null;
 
   const facts = [
     ["First aired", show.year],
@@ -68,7 +89,15 @@ export default async function ShowPage({ params, searchParams }: PageProps<"/ser
             </div>
             <p className="mt-5 max-w-2xl text-base leading-relaxed text-text/85">{show.overview || "No description available."}</p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <a href="#episodes" className="btn btn-primary !px-7 !py-3 !text-base">Episodes</a>
+              {tvPattern && (
+                <a href="#watch" className="btn btn-primary !px-7 !py-3 !text-base"><PlayIcon /> Play</a>
+              )}
+              <a href="#episodes" className={`btn ${tvPattern ? "btn-ghost" : "btn-primary"} !px-7 !py-3 !text-base`}>Episodes</a>
+              {!tvPattern && !hasStream(show.name, show.year) && (
+                <span className="inline-flex items-center rounded-lg border border-line bg-white/90 px-4 py-3 text-sm font-extrabold tracking-wider text-ink uppercase">
+                  Coming soon
+                </span>
+              )}
               {show.trailerKey && <a href="#trailer" className="btn btn-ghost !px-6 !py-3 !text-base">Watch trailer</a>}
             </div>
           </div>
@@ -85,6 +114,39 @@ export default async function ShowPage({ params, searchParams }: PageProps<"/ser
               </div>
             ))}
           </dl>
+        )}
+
+        {playing && season && (
+          <section id="watch" className="mt-10 scroll-mt-24">
+            <h2 className="font-display text-3xl tracking-wide">
+              Watch · S{season.number} E{playing.number} <span className="text-muted">{playing.name}</span>
+            </h2>
+            <MultiServerPlayer
+              servers={tvServers}
+              resourceId={show.id}
+              season={season.number}
+              episode={playing.number}
+              title={`${show.name} S${season.number}E${playing.number} — player`}
+              poster={playing.stillUrl || show.backdropUrl}
+              className="mt-4 max-w-5xl"
+            />
+            <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1">
+              {episodes.some((e) => e.number === playing.number + 1) && (
+                <Link
+                  href={`/series/${show.id}?season=${season.number}&episode=${playing.number + 1}#watch`}
+                  className="text-xs font-semibold text-accent hover:underline"
+                >
+                  Next episode →
+                </Link>
+              )}
+              <Link
+                href={`/dmca?url=${encodeURIComponent(`/series/${show.id}`)}#report`}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-muted hover:text-danger"
+              >
+                <FlagIcon /> Report this video
+              </Link>
+            </div>
+          </section>
         )}
 
         {season && (
@@ -128,6 +190,14 @@ export default async function ShowPage({ params, searchParams }: PageProps<"/ser
                       {[e.airDate, e.runtime ? `${e.runtime} min` : ""].filter(Boolean).join(" · ")}
                     </p>
                     <p className="mt-1.5 line-clamp-3 text-sm text-text/75">{e.overview || "No description yet."}</p>
+                    {tvPattern && (
+                      <Link
+                        href={`/series/${show.id}?season=${season.number}&episode=${e.number}#watch`}
+                        className={`btn mt-2 !px-3 !py-1.5 !text-xs ${playing?.number === e.number ? "btn-ghost" : "btn-primary"}`}
+                      >
+                        <PlayIcon /> {playing?.number === e.number ? "Playing" : "Play"}
+                      </Link>
+                    )}
                   </div>
                 </li>
               ))}
@@ -168,11 +238,11 @@ export default async function ShowPage({ params, searchParams }: PageProps<"/ser
           </section>
         )}
 
-        {show.similar.length > 0 && (
+        {similar.length > 0 && (
           <section className="mt-12">
             <h2 className="font-display text-3xl tracking-wide">More like this</h2>
             <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-              {show.similar.slice(0, 6).map((s) => <TitleCard key={s.id} card={showToCard(s)} href={`/series/${s.id}`} rating={s.rating} />)}
+              {similar.map((s) => <TitleCard key={s.id} card={showToCard(s)} href={`/series/${s.id}`} rating={s.rating} comingSoon={simStatus.get(s.id) !== "watch"} />)}
             </div>
           </section>
         )}

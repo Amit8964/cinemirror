@@ -57,6 +57,31 @@ ffmpeg -i film.mp4 \
 
 If the video is on another domain, that host must send CORS headers for HLS (`Access-Control-Allow-Origin`).
 
+## Languages and qualities (Hindi 1080p, English 720p, …)
+
+In the title form, **Language / quality versions** takes one extra stream per line:
+
+```
+Hindi 1080p   | hi | https://cdn.example.com/film/hi-1080.m3u8
+Hindi 720p    | hi | https://cdn.example.com/film/hi-720.m3u8
+English 1080p | en | https://cdn.example.com/film/en-1080.m3u8
+Tamil 720p    | ta | https://cdn.example.com/film/ta-720.mp4
+```
+
+The main video above is the default version (set its name in the **Language** field). The separately hosted player
+(`cinemirror-player`, Admin → Player) shows a **Language** button and menu, remembers the viewer's language, and keeps the
+position when switching. A single `.m3u8` that already holds several qualities (1080/720/480) or several audio tracks needs
+no lines here — the player lists those under **Quality** and **Audio** by itself. Only use streams you own or are licensed to use.
+The built-in player (used when no hosted player is set) does not have the language menu yet.
+
+## Extra embed servers (local only)
+
+Admin → **Servers** manages the extra embed servers shown as buttons above the player on /movie and /series pages: add, edit,
+re-order, hide, delete, and a **Test URL** button (does the site allow framing? does an unknown id answer 404?). Each server is
+a URL pattern with `{id}` (TMDB id), and for series `{season}` and `{episode}`. They are offered only while
+`LOCAL_EXTRA_SERVERS=on` is set and the site runs with `npm run dev`; a production build never shows them. The background
+sync checks every enabled server that answers 404 for unknown titles and hides it where it has nothing.
+
 ## Giving the player to another website
 
 1. Admin → **Partners** → **New partner**. Enter their name and the domain(s) of their website.

@@ -3,6 +3,12 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   serverExternalPackages: ["@libsql/client", "libsql"],
   poweredByHeader: false,
+  experimental: {
+    // Dev memory: compile dynamic imports only when first used, and let Turbopack drop work nobody needs.
+    turbopackLazyDynamicImports: true,
+    turbopackLazyDynamicImportsSSR: true,
+    turbopackGc: true,
+  },
   turbopack: {
     rules: {
       "*.css": {

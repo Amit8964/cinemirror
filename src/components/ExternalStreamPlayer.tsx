@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type SyntheticEvent } from "react";
-import { buildStreamSrc } from "@/lib/stream";
+import { buildStreamSrc, buildTvStreamSrc } from "@/lib/stream";
 import { AlertIcon } from "./icons";
 
 /** After this long without a load event, offer a retry (cross-origin iframes never report errors). */
@@ -10,8 +10,11 @@ const SLOW_MS = 12_000;
 export interface ExternalStreamPlayerProps {
   /** TMDB id of the movie. */
   resourceId: number | string;
-  /** Base URL pattern with an {id} placeholder — see src/lib/stream.ts. */
+  /** Base URL pattern — {id} for movies; {id}, {season} and {episode} when `episode` is given. See src/lib/stream.ts. */
   pattern: string;
+  /** Episode mode: both set → the pattern is a TV pattern. */
+  season?: number | string;
+  episode?: number | string;
   /** Accessible name for the iframe. */
   title?: string;
   /** Backdrop shown behind the loading indicator. */
@@ -21,6 +24,8 @@ export interface ExternalStreamPlayerProps {
    * Turn off only for a player you trust that refuses to run sandboxed.
    */
   sandboxed?: boolean;
+  /** Referrer sent to the embed. Some servers check it; WeFlix-style servers get "origin". */
+  referrerPolicy?: ReferrerPolicy;
   className?: string;
 }
 
@@ -30,16 +35,19 @@ export interface ExternalStreamPlayerProps {
  * id or a retry resets it without extra effects or re-renders of the parent page.
  */
 function ExternalStreamPlayer({
-  resourceId, pattern, title = "Video player", poster, sandboxed = true, className = "",
+  resourceId, pattern, season, episode, title = "Video player", poster, sandboxed = true, referrerPolicy = "strict-origin-when-cross-origin", className = "",
 }: ExternalStreamPlayerProps) {
-  const src = useMemo(() => buildStreamSrc(pattern, resourceId), [pattern, resourceId]);
+  const src = useMemo(
+    () => (season != null && episode != null ? buildTvStreamSrc(pattern, resourceId, season, episode) : buildStreamSrc(pattern, resourceId)),
+    [pattern, resourceId, season, episode],
+  );
   const [attempt, setAttempt] = useState(0);
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
   return (
     <div className={`relative aspect-video w-full overflow-hidden rounded-xl border border-line bg-black ${className}`}>
       {src ? (
-        <Frame key={`${src}#${attempt}`} src={src} title={title} poster={poster} sandboxed={sandboxed} onRetry={retry} />
+        <Frame key={`${src}#${attempt}`} src={src} title={title} poster={poster} sandboxed={sandboxed} referrerPolicy={referrerPolicy} onRetry={retry} />
       ) : (
         <div className="absolute inset-0 grid place-items-center p-6 text-center text-sm text-muted">
           <p className="flex items-center gap-2"><AlertIcon className="text-accent" /> The player isn&apos;t available for this title.</p>
@@ -52,8 +60,8 @@ function ExternalStreamPlayer({
 type Status = "loading" | "slow" | "ready";
 
 const Frame = memo(function Frame({
-  src, title, poster, sandboxed, onRetry,
-}: { src: string; title: string; poster?: string; sandboxed: boolean; onRetry: () => void }) {
+  src, title, poster, sandboxed, referrerPolicy, onRetry,
+}: { src: string; title: string; poster?: string; sandboxed: boolean; referrerPolicy: ReferrerPolicy; onRetry: () => void }) {
   const ref = useRef<HTMLIFrameElement>(null);
   const [status, setStatus] = useState<Status>("loading");
 
@@ -100,9 +108,9 @@ const Frame = memo(function Frame({
         ref={ref}
         title={title}
         onLoad={onLoad}
-        allow="autoplay; encrypted-media; fullscreen; picture-in-picture"
+        allow="fullscreen *; picture-in-picture *; autoplay *; encrypted-media *; screen-wake-lock *;"
         allowFullScreen
-        referrerPolicy="strict-origin-when-cross-origin"
+        referrerPolicy={referrerPolicy}
         sandbox={sandboxed ? "allow-scripts allow-same-origin allow-presentation allow-forms" : undefined}
         className={`absolute inset-0 h-full w-full border-0 transition-opacity duration-500 ${status === "ready" ? "opacity-100" : "opacity-0"}`}
       />

@@ -4,6 +4,7 @@ import HeroCarousel, { type HeroSlide } from "@/components/HeroCarousel";
 import MovieGrid from "@/components/MovieGrid";
 import Shelf, { ShelfItem } from "@/components/Shelf";
 import TitleCard from "@/components/TitleCard";
+import { resolveStreams } from "@/lib/stream-status";
 import { listTitles, toCard, trendingSlugs } from "@/lib/titles";
 import {
   discoverByLanguage, discoverTv, getTrendingMovies, listCategory, listTv, showToCard, tmdbEnabled, tmdbToCard,
@@ -36,13 +37,23 @@ export default async function HomePage() {
     loadTmdbRows(tmdb),
   ]);
 
+  // Released titles with no stream are left out of every row; upcoming ones stay and say "Coming soon".
+  const uniq = <T extends { id: number }>(list: T[]) => [...new Map(list.map((x) => [x.id, x])).values()];
+  const [mst, tst] = await Promise.all([
+    resolveStreams("movie", uniq([...rows.heroMovies, ...rows.movies.flatMap((r) => r.items)]).map((m) => ({ id: m.id, title: m.title, year: m.year, date: m.releaseDate }))),
+    resolveStreams("tv", uniq(rows.series.flatMap((r) => r.items)).map((s) => ({ id: s.id, title: s.name, year: s.year, date: s.firstAirDate }))),
+  ]);
+  const movieRows = rows.movies.map((r) => ({ ...r, items: r.items.filter((m) => mst.get(m.id) !== "hide") })).filter((r) => r.items.length >= 3);
+  const seriesRows = rows.series.map((r) => ({ ...r, items: r.items.filter((x) => tst.get(x.id) !== "hide") })).filter((r) => r.items.length >= 3);
+  const heroMovies = rows.heroMovies.filter((m) => mst.get(m.id) !== "hide");
+
   const genreCount = new Map<string, number>();
   titles.forEach((t) => t.genres.forEach((g) => genreCount.set(g, (genreCount.get(g) ?? 0) + 1)));
   const genres = [...genreCount.entries()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]).slice(0, 3);
 
   return (
     <div className="-mt-16">
-      <HeroCarousel slides={buildSlides(titles, rows.heroMovies)} />
+      <HeroCarousel slides={buildSlides(titles, heroMovies)} />
 
       <div className="relative z-10 -mt-10 sm:-mt-16">
         <ContinueWatching available={titles.map((t) => t.slug)} />
@@ -77,18 +88,18 @@ export default async function HomePage() {
           </section>
         )}
 
-        {rows.movies.map((r) => (
+        {movieRows.map((r) => (
           <Shelf key={r.title} title={r.title} action={seeAll(r.href)}>
             {r.items.map((m) => (
-              <ShelfItem key={m.id}><TitleCard card={tmdbToCard(m)} href={`/movie/${m.id}`} rating={m.rating} /></ShelfItem>
+              <ShelfItem key={m.id}><TitleCard card={tmdbToCard(m)} href={`/movie/${m.id}`} rating={m.rating} comingSoon={mst.get(m.id) !== "watch"} /></ShelfItem>
             ))}
           </Shelf>
         ))}
 
-        {rows.series.map((r) => (
+        {seriesRows.map((r) => (
           <Shelf key={r.title} title={r.title} action={seeAll(r.href)}>
             {r.items.map((s) => (
-              <ShelfItem key={s.id}><TitleCard card={showToCard(s)} href={`/series/${s.id}`} rating={s.rating} /></ShelfItem>
+              <ShelfItem key={s.id}><TitleCard card={showToCard(s)} href={`/series/${s.id}`} rating={s.rating} comingSoon={tst.get(s.id) !== "watch"} /></ShelfItem>
             ))}
           </Shelf>
         ))}

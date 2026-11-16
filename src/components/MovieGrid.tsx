@@ -1,13 +1,13 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { preconnect } from "react-dom";
+import { resolveStreams } from "@/lib/stream-status";
 import { posterSrcSet, type TmdbMovie } from "@/lib/tmdb";
 import { hueFor } from "@/lib/util";
 
 // Server component: renders plain HTML + CSS and ships no JavaScript to the browser.
 // Images are sized responsively (srcset), lazy below the fold and reserve their space (no layout shift).
 
-const DAY = 86_400_000;
 const dateFmt = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 /** Width each card gets at each breakpoint, so the browser downloads the lightest poster that stays sharp. */
@@ -15,8 +15,8 @@ const SIZES = "(min-width: 1280px) 210px, (min-width: 1024px) 19vw, (min-width: 
 
 export const GRID_COLUMNS = "grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6";
 
-export default function MovieGrid({
-  movies, basePath = "/movie", rankFrom, eager = 0, columns = GRID_COLUMNS, className = "",
+export default async function MovieGrid({
+  movies: allMovies, basePath = "/movie", rankFrom, eager = 0, columns = GRID_COLUMNS, className = "",
 }: {
   movies: TmdbMovie[];
   /** Cards link to `${basePath}/${id}`. */
@@ -28,8 +28,13 @@ export default function MovieGrid({
   columns?: string;
   className?: string;
 }) {
-  if (!movies.length) return null;
+  if (!allMovies.length) return null;
   preconnect("https://image.tmdb.org");
+  // Released titles with no stream are left out; upcoming ones stay and say "Coming soon".
+  let movies = allMovies;
+  const status = await resolveStreams("movie", movies.map((m) => ({ id: m.id, title: m.title, year: m.year, date: m.releaseDate })));
+  movies = movies.filter((m) => status.get(m.id) !== "hide");
+  if (!movies.length) return null;
 
   return (
     <ul role="list" className={`grid gap-x-3 gap-y-7 sm:gap-x-5 sm:gap-y-9 ${columns} ${className}`}>
@@ -40,6 +45,7 @@ export default function MovieGrid({
             href={`${basePath}/${m.id}`}
             rank={rankFrom !== undefined ? rankFrom + i : undefined}
             eager={i < eager}
+            available={status.get(m.id) === "watch"}
           />
         </li>
       ))}
@@ -47,9 +53,10 @@ export default function MovieGrid({
   );
 }
 
-function MovieCard({ movie: m, href, rank, eager }: { movie: TmdbMovie; href: string; rank?: number; eager: boolean }) {
+function MovieCard({ movie: m, href, rank, eager, available }: { movie: TmdbMovie; href: string; rank?: number; eager: boolean; available: boolean }) {
   const hue = hueFor(m.title);
-  const badge = releaseBadge(m.releaseDate);
+  // Playable here → "Watch now"; poster only, no stream yet → "Coming soon".
+  const badge = available ? { label: "Watch now", className: "bg-accent text-accent-ink" } : { label: "Coming soon", className: "bg-white/90 text-ink" };
   const date = m.releaseDate ? dateFmt.format(new Date(`${m.releaseDate}T00:00:00Z`)) : m.year ? String(m.year) : "";
   const overview = m.overview.length > 150 ? `${m.overview.slice(0, 150).trimEnd()}…` : m.overview;
 
@@ -130,11 +137,3 @@ function RatingRing({ value }: { value: number }) {
   );
 }
 
-/** "Soon" for unreleased films, "New" for the last 30 days. Kept outside components (reads the clock). */
-function releaseBadge(releaseDate: string): { label: string; className: string } | null {
-  if (!releaseDate) return null;
-  const age = (Date.now() - Date.parse(`${releaseDate}T00:00:00Z`)) / DAY;
-  if (age < 0) return { label: "Soon", className: "bg-white/90 text-ink" };
-  if (age <= 30) return { label: "New", className: "bg-accent text-accent-ink" };
-  return null;
-}

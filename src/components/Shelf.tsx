@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 export default function Shelf({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
   return (
-    <section className="mt-10">
+    <section className="lazy-section mt-10">
       <div className="mx-auto flex max-w-7xl items-baseline justify-between px-4 sm:px-6">
         <h2 className="font-display text-2xl tracking-wide sm:text-3xl">{title}</h2>
         {action}

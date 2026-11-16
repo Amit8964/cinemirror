@@ -58,7 +58,7 @@ export default async function NewTitlePage({ searchParams }: PageProps<"/admin/t
         error={browsed.error}
       />
 
-      <ImportPanel link={link} result={imported} stream={stream} tmdb={tmdb} tmdbEnabled={enabled} />
+      <ImportPanel error={one(sp.error)} bulkLink={one(sp.blink)} link={link} result={imported} stream={stream} tmdb={tmdb} tmdbEnabled={enabled} />
 
       {enabled && (
         <section className="mb-6 rounded-xl border border-line bg-surface p-5">

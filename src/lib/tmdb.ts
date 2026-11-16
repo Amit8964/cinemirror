@@ -209,6 +209,8 @@ export interface TmdbShow {
   name: string;
   overview: string;
   year: number | null;
+  /** "YYYY-MM-DD", or "" when unknown. */
+  firstAirDate: string;
   posterUrl: string;
   backdropUrl: string;
   rating: number;
@@ -257,6 +259,7 @@ function mapShow(r: Raw): TmdbShow {
     name: String(r.name ?? r.original_name ?? ""),
     overview: String(r.overview ?? ""),
     year: yearOf(r.first_air_date),
+    firstAirDate: /^\d{4}-\d{2}-\d{2}$/.test(String(r.first_air_date ?? "")) ? String(r.first_air_date) : "",
     posterUrl: img("w342", r.poster_path),
     backdropUrl: img("w1280", r.backdrop_path),
     rating: Number(r.vote_average ?? 0),

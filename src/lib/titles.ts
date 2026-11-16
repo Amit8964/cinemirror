@@ -1,5 +1,5 @@
 import { query, run, newId, nowSec, type Row } from "./db";
-import type { Subtitle, Title, TitleCardData } from "./types";
+import type { AudioVersion, Subtitle, Title, TitleCardData } from "./types";
 
 function parseJson<T>(value: unknown, fallback: T): T {
   try {
@@ -26,6 +26,7 @@ function toTitle(r: Row): Title {
     sourceUrl: String(r.source_url ?? ""),
     sourceType: r.source_type === "hls" || r.source_type === "youtube" ? r.source_type : "mp4",
     subtitles: parseJson<Subtitle[]>(r.subtitles, []),
+    versions: parseJson<AudioVersion[]>(r.audio_versions, []),
     credit: String(r.credit ?? ""),
     featured: Number(r.featured) === 1,
     published: Number(r.published) === 1,
@@ -90,13 +91,13 @@ export async function createTitle(input: TitleInput): Promise<string> {
   const slug = await uniqueSlug(input.slug);
   await run(
     `INSERT INTO titles (id, slug, title, description, year, duration_min, genres, rating, language,
-       poster_url, backdrop_url, source_url, source_type, subtitles, credit, featured, published,
+       poster_url, backdrop_url, source_url, source_type, subtitles, audio_versions, credit, featured, published,
        embeddable, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       id, slug, input.title, input.description, input.year, input.durationMin,
       JSON.stringify(input.genres), input.rating, input.language, input.posterUrl, input.backdropUrl,
-      input.sourceUrl, input.sourceType, JSON.stringify(input.subtitles), input.credit,
+      input.sourceUrl, input.sourceType, JSON.stringify(input.subtitles), JSON.stringify(input.versions), input.credit,
       input.featured ? 1 : 0, input.published ? 1 : 0, input.embeddable ? 1 : 0, nowSec(),
     ],
   );
@@ -108,12 +109,12 @@ export async function updateTitle(id: string, input: TitleInput): Promise<void> 
   await run(
     `UPDATE titles SET slug = ?, title = ?, description = ?, year = ?, duration_min = ?, genres = ?,
        rating = ?, language = ?, poster_url = ?, backdrop_url = ?, source_url = ?, source_type = ?,
-       subtitles = ?, credit = ?, featured = ?, published = ?, embeddable = ?
+       subtitles = ?, audio_versions = ?, credit = ?, featured = ?, published = ?, embeddable = ?
      WHERE id = ?`,
     [
       slug, input.title, input.description, input.year, input.durationMin,
       JSON.stringify(input.genres), input.rating, input.language, input.posterUrl, input.backdropUrl,
-      input.sourceUrl, input.sourceType, JSON.stringify(input.subtitles), input.credit,
+      input.sourceUrl, input.sourceType, JSON.stringify(input.subtitles), JSON.stringify(input.versions), input.credit,
       input.featured ? 1 : 0, input.published ? 1 : 0, input.embeddable ? 1 : 0, id,
     ],
   );
@@ -129,6 +130,13 @@ export async function setTitlePublished(id: string, published: boolean): Promise
 }
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "");
+
+/** Any title (drafts included) with the same stream URL, or the same title + year. Used to stop duplicate imports. */
+export async function findDuplicate(title: string, year: number | null, sourceUrl: string): Promise<Title | null> {
+  const n = norm(title);
+  const all = await listTitles({ includeDrafts: true });
+  return all.find((t) => t.sourceUrl === sourceUrl || (n && norm(t.title) === n && (year == null || t.year == null || t.year === year))) ?? null;
+}
 
 /** A published title in our own library that is the same film as a TMDB entry (title + year match). */
 export async function findLibraryMatch(title: string, year: number | null): Promise<Title | null> {

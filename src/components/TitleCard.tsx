@@ -5,8 +5,8 @@ import { PlayIcon, StarIcon } from "./icons";
 import Poster from "./Poster";
 
 export default function TitleCard({
-  card, progress, href, rating,
-}: { card: TitleCardData; progress?: number; href?: string; rating?: number }) {
+  card, progress, href, rating, comingSoon,
+}: { card: TitleCardData; progress?: number; href?: string; rating?: number; comingSoon?: boolean }) {
   const meta = [card.year, formatDuration(card.durationMin), card.genres[0]].filter(Boolean).join(" · ");
   return (
     <Link href={href ?? `/title/${card.slug}`} className="group block">
@@ -17,10 +17,19 @@ export default function TitleCard({
           className="ring-1 ring-white/5 transition group-hover:ring-2 group-hover:ring-accent/70"
         />
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-gradient-to-t from-black/80 via-black/10 to-transparent opacity-0 transition group-hover:opacity-100">
-          <span className="grid h-12 w-12 place-items-center rounded-full bg-accent text-xl text-accent-ink shadow-lg">
-            <PlayIcon />
-          </span>
+          {comingSoon ? (
+            <span className="rounded-full bg-white/90 px-3 py-1 text-xs font-extrabold tracking-wider text-ink uppercase">Coming soon</span>
+          ) : (
+            <span className="grid h-12 w-12 place-items-center rounded-full bg-accent text-xl text-accent-ink shadow-lg">
+              <PlayIcon />
+            </span>
+          )}
         </div>
+        {comingSoon && (
+          <span className="absolute right-2 bottom-2 rounded-md bg-white/90 px-1.5 py-0.5 text-[10px] font-extrabold tracking-wider text-ink uppercase">
+            Coming soon
+          </span>
+        )}
         {rating ? (
           <span className="absolute top-2 left-2 flex items-center gap-1 rounded-md bg-black/70 px-1.5 py-0.5 text-[11px] font-bold text-accent backdrop-blur">
             <StarIcon /> {rating.toFixed(1)}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import TitleCard from "@/components/TitleCard";
 import { SearchIcon } from "@/components/icons";
+import { resolveStreams } from "@/lib/stream-status";
 import {
   LANGUAGES, TV_CATEGORIES, discoverTv, listTv, searchTv, showToCard, tmdbEnabled, tvGenreList,
   type TmdbShow, type TvCategory,
@@ -44,6 +45,10 @@ export default async function SeriesPage({ searchParams }: PageProps<"/series">)
     heading = TV_CATEGORIES[cat];
   }
 
+  // Released shows with no stream are left out; upcoming ones stay and say "Coming soon".
+  const status = await resolveStreams("tv", shows.map((s) => ({ id: s.id, title: s.name, year: s.year, date: s.firstAirDate })));
+  const visibleShows = shows.filter((s) => status.get(s.id) !== "hide");
+
   const href = (next: Record<string, string | number>) => {
     const p = new URLSearchParams();
     for (const [k, v] of Object.entries(next)) if (v) p.set(k, String(v));
@@ -84,9 +89,9 @@ export default async function SeriesPage({ searchParams }: PageProps<"/series">)
         ))}
       </div>
 
-      {shows.length ? (
+      {visibleShows.length ? (
         <div className="mt-8 grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 2xl:grid-cols-7">
-          {shows.map((s) => <TitleCard key={s.id} card={showToCard(s)} href={`/series/${s.id}`} rating={s.rating} />)}
+          {visibleShows.map((s) => <TitleCard key={s.id} card={showToCard(s)} href={`/series/${s.id}`} rating={s.rating} comingSoon={status.get(s.id) !== "watch"} />)}
         </div>
       ) : (
         <div className="mt-10 rounded-xl border border-dashed border-line p-10 text-center">

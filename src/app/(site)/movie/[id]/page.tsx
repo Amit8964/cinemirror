@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import ExternalStreamPlayer from "@/components/ExternalStreamPlayer";
+import MultiServerPlayer from "@/components/MultiServerPlayer";
 import { FlagIcon, PlayIcon } from "@/components/icons";
 import Poster from "@/components/Poster";
 import TitleCard from "@/components/TitleCard";
-import { getStreamPattern } from "@/lib/stream";
+import { resolveStreams } from "@/lib/stream-status";
+import { getActiveStreamPatterns } from "@/lib/hosted-player";
+import { getPlayerServers } from "@/lib/local-servers";
+import { linkIndex, serverLinkIndex } from "@/lib/stream-sync";
 import { findLibraryMatch } from "@/lib/titles";
 import { getMovie, tmdbToCard } from "@/lib/tmdb";
 import { formatDuration, hueFor } from "@/lib/util";
@@ -27,7 +30,14 @@ export default async function MoviePage({ params }: PageProps<"/movie/[id]">) {
   if (!m) notFound();
 
   const inLibrary = await findLibraryMatch(m.title, m.year);
-  const streamPattern = getStreamPattern();
+  // The sync marks titles the provider has nothing for; those get no player. Not-yet-checked ones still try.
+  const primaryPattern = (await linkIndex().catch(() => null))?.("movie", m.id) === "unavailable" ? null : (await getActiveStreamPatterns()).movie;
+  // Locally (LOCAL_EXTRA_SERVERS=on, dev only) extra servers are added after the configured one.
+  const sIdx = await serverLinkIndex().catch(() => null);
+  const servers = await getPlayerServers("movie", primaryPattern, (sid) => sIdx?.(sid, "movie", m.id) === "unavailable");
+  const streamPattern = servers[0]?.pattern ?? null;
+  const simStatus = await resolveStreams("movie", m.similar.map((x) => ({ id: x.id, title: x.title, year: x.year, date: x.releaseDate })));
+  const similar = m.similar.filter((x) => simStatus.get(x.id) !== "hide").slice(0, 6);
   const hue = hueFor(m.title);
   const facts = [
     ["Released", m.year],
@@ -77,8 +87,8 @@ export default async function MoviePage({ params }: PageProps<"/movie/[id]">) {
                   <PlayIcon /> Play
                 </a>
               ) : (
-                <span className="rounded-lg border border-line px-4 py-3 text-sm font-semibold text-muted">
-                  Not in the CineMirror library yet
+                <span className="inline-flex items-center rounded-lg bg-white/90 px-5 py-3 text-sm font-extrabold tracking-wider text-ink uppercase">
+                  Coming soon
                 </span>
               )}
               {m.trailerKey && (
@@ -104,9 +114,9 @@ export default async function MoviePage({ params }: PageProps<"/movie/[id]">) {
         {streamPattern && !inLibrary && (
           <section id="watch" className="mt-10 scroll-mt-24">
             <h2 className="font-display text-3xl tracking-wide">Watch</h2>
-            <ExternalStreamPlayer
+            <MultiServerPlayer
+              servers={servers}
               resourceId={m.id}
-              pattern={streamPattern}
               title={`${m.title} — player`}
               poster={m.backdropUrl}
               className="mt-4 max-w-5xl"
@@ -152,11 +162,11 @@ export default async function MoviePage({ params }: PageProps<"/movie/[id]">) {
           </section>
         )}
 
-        {m.similar.length > 0 && (
+        {similar.length > 0 && (
           <section className="mt-12">
             <h2 className="font-display text-3xl tracking-wide">More like this</h2>
             <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-7 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-              {m.similar.slice(0, 6).map((s) => <TitleCard key={s.id} card={tmdbToCard(s)} href={`/movie/${s.id}`} />)}
+              {similar.map((s) => <TitleCard key={s.id} card={tmdbToCard(s)} href={`/movie/${s.id}`} comingSoon={simStatus.get(s.id) !== "watch"} />)}
             </div>
           </section>
         )}

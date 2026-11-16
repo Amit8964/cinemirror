@@ -44,3 +44,14 @@ export const signPlayerGrant = (g: Pick<PlayerGrant, "t" | "p" | "d">) => sign(g
 export const verifyPlayerGrant = (t: unknown) => verify<PlayerGrant>(t, "player");
 export const signPlayGrant = (playId: string) => sign({ pl: playId }, "play", "12h");
 export const verifyPlayGrant = (t: unknown) => verify<PlayGrant>(t, "play");
+
+/** Short-lived token the player trades for one stream. Bound to a partner and one resource ("movie|123|0|0" or "slug|<slug>"). */
+export interface StreamToken extends JWTPayload {
+  p: string; // partner id
+  r: string; // resource
+  d: string | null; // embedding host the token was issued for
+}
+
+export const STREAM_TOKEN_TTL = "10m";
+export const signStreamToken = (g: Pick<StreamToken, "p" | "r" | "d">) => sign(g, "stream", STREAM_TOKEN_TTL);
+export const verifyStreamToken = (t: unknown) => verify<StreamToken>(t, "stream");

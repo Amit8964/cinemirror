@@ -7,6 +7,16 @@ export interface Subtitle {
   url: string;
 }
 
+/** Another language / quality of the same film: its own stream, chosen from the player's Language menu. */
+export interface AudioVersion {
+  /** Shown in the menu, e.g. "Hindi 1080p". */
+  label: string;
+  /** Language code, e.g. "hi", "en", "ta". */
+  lang: string;
+  src: string;
+  type: "hls" | "mp4";
+}
+
 export interface Title {
   id: string;
   slug: string;
@@ -22,6 +32,8 @@ export interface Title {
   sourceUrl: string;
   sourceType: SourceType;
   subtitles: Subtitle[];
+  /** Extra language / quality versions (the main source above is the default one). */
+  versions: AudioVersion[];
   credit: string;
   featured: boolean;
   published: boolean;

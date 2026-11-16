@@ -42,7 +42,11 @@ export function prefillFromTmdb(m: TmdbDetails): Partial<Title> {
  * `stream` / `tmdb` let the admin override the automatic choices.
  */
 export async function importFromLink(link: string, pick: { stream?: string; tmdb?: string } = {}): Promise<ImportResult> {
-  const resolved = await resolveLink(link);
+  return importResolved(await resolveLink(link), pick);
+}
+
+/** The TMDB-matching half of importFromLink, for callers that already resolved (or built) a `Resolved`. */
+export async function importResolved(resolved: Resolved, pick: { stream?: string; tmdb?: string } = {}): Promise<ImportResult> {
 
   const tmdbParam = pick.tmdb ?? "";
   const forcedId = Number(tmdbParam) || 0;
